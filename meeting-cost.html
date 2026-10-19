@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Meeting Cost HUD</title>
+<style>
+  /* dark HUD look: near-black glass, green/amber status, blue accents, thin rules */
+  :root{--fg:#f2f2f2;--bg:rgba(16,16,20,.92);--blue:#58a6ff;--green:#56d364;--amber:#e3b341;--grey:#8b949e;
+        --rule:rgba(255,255,255,.16);--field:rgba(255,255,255,.08);--line:rgba(255,255,255,.2);--mono:"Cascadia Mono",Consolas,monospace}
+  html,body{margin:0;height:100%;background:transparent;font:500 15px/1.35 "Segoe UI",system-ui,sans-serif;color:var(--fg)}
+  body.page{background:#0d0d10}
+  #pill,#panel{background:var(--bg);border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.45)}
+  /* HUD and settings panel share one corner dock: panel stacks above the HUD in bottom corners, below it in top corners */
+  #dock{position:fixed;display:flex;flex-direction:column;align-items:flex-start;gap:10px;max-height:calc(100vh - 48px)}
+  #dock.tl{top:24px;left:24px}#dock.tr{top:24px;right:24px}#dock.bl{bottom:24px;left:24px}#dock.br{bottom:24px;right:24px}
+  #dock.bl,#dock.br{flex-direction:column-reverse}#dock.tr,#dock.br{align-items:flex-end}
+  #pill{position:relative;flex:none;min-width:200px;padding:14px 16px;user-select:none;cursor:pointer}
+  .top{display:flex;justify-content:space-between;gap:16px;padding-bottom:6px;border-bottom:1px solid var(--rule)}
+  #status{font-size:14px;white-space:nowrap;font-weight:700;letter-spacing:.04em;color:var(--grey)}
+  #status.running{color:var(--green)}#status.paused{color:var(--amber)}
+  /* fixed 10px state icon so the overlay never changes width: ring = ready, dot = running, bars = paused */
+  #dot{display:inline-block;box-sizing:border-box;width:10px;height:10px;margin-right:7px;border:2px solid;border-radius:50%}
+  .running #dot{background:currentColor}.paused #dot{border-width:0 3px;border-radius:0}
+  #time{font:14px var(--mono);color:var(--blue)}
+  #cost{display:grid;margin-top:6px;font-size:40px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
+  /* invisible "9,999.99" in the same grid cell reserves width, so the overlay does not grow below 10,000 */
+  #cost>span{grid-area:1/1}#ghost{visibility:hidden}
+  .sub{font-size:14px;opacity:.75;font-variant-numeric:tabular-nums}
+  #panel{min-height:0;overflow:auto;padding:18px 20px;width:300px;transition:opacity .2s} /* scrolls if the screen is too short */
+  #panel h1{display:flex;justify-content:space-between;align-items:center;margin:0 0 8px;padding-bottom:8px;font-size:17px;font-weight:500;border-bottom:1px solid var(--rule)}
+  #close{flex:none;padding:0 2px;border:0;background:none;color:var(--fg);font-size:22px;line-height:1;opacity:.6}
+  #close:hover,#close:focus-visible{opacity:1}
+  #panel label{display:flex;justify-content:space-between;align-items:center;margin:7px 0;font-size:14px;opacity:.85}
+  #panel input,#panel select{box-sizing:border-box;width:130px;padding:3px 8px;border-radius:6px;border:1px solid var(--line);background:var(--field);color:var(--fg);font:inherit}
+  #panel select option{background:#16161a}
+  #panel input:focus,#panel select:focus{outline:0;border-color:var(--blue)}
+  .row{display:flex;gap:8px;margin-top:12px}
+  button{flex:1;padding:5px 10px;border:1px solid var(--line);border-radius:6px;background:var(--field);color:var(--fg);font:inherit;font-size:14px;cursor:pointer}
+  button:hover,button:focus-visible{outline:0;border-color:var(--blue)}
+  button.primary{color:var(--blue);border-color:var(--blue)}
+  .hint{display:grid;grid-template-columns:auto 1fr;gap:1px 14px;margin-top:12px;padding-top:9px;border-top:1px solid var(--rule);font-size:13px;opacity:.85}
+  .hint b{font:400 13px var(--mono);color:var(--blue)}
+  body.hidepanel #panel{opacity:0;pointer-events:none}
+  #info{display:none;margin-top:8px;padding-top:6px;border-top:1px solid var(--rule);font-size:13px;opacity:.75}
+  body.showinfo #info{display:block}
+  /* resize grip sits on the pill corner that faces the screen centre */
+  #grip{position:absolute;width:12px;height:12px;border:2px solid var(--blue);opacity:0;transition:opacity .2s;touch-action:none}
+  #pill:hover #grip{opacity:.8}
+  /* hover-only, so the stream never shows it */
+  #gear{flex:none;margin-left:8px;padding:0 2px;border:0;background:none;color:var(--fg);font-size:15px;line-height:1;opacity:0;transition:opacity .2s}
+  #pill:hover #gear{opacity:.6}#gear:hover,#gear:focus-visible{opacity:1!important}
+  .br #grip{top:4px;left:4px;border-width:2px 0 0 2px;cursor:nwse-resize}.tl #grip{bottom:4px;right:4px;border-width:0 2px 2px 0;cursor:nwse-resize}
+  .bl #grip{top:4px;right:4px;border-width:2px 2px 0 0;cursor:nesw-resize}.tr #grip{bottom:4px;left:4px;border-width:0 0 2px 2px;cursor:nesw-resize}
+</style>
+</head>
+<body>
+<div id="dock" class="br">
+<div id="pill" title="Running meeting cost, elapsed time, participant count and current cost per hour. Click to start/pause.">
+  <div class="top"><span id="status" title="Green dot = timer running, amber bars = paused, grey ring = not started"><i id="dot"></i>MEETING COST</span><span><span id="time">00:00:00</span><button id="gear" title="Show or hide the settings panel (H)">&#9881;</button></span></div>
+  <div id="cost"><span id="val">€0.00</span><span id="ghost"></span></div>
+  <div class="sub"><span id="ppl">0</span> people · <span id="rate">0</span>/h</div>
+  <div id="info"></div>
+  <div id="grip" title="Drag to resize the overlay. Double-click to reset to default size."></div>
+</div>
+
+<div id="panel">
+  <h1><span title="Live meeting cost overlay">Meeting Cost HUD</span><button id="close" title="Hide this settings panel so only the overlay is visible. Press H or Esc, or click the gear on the overlay, to show it again.">&times;</button></h1>
+  <label title="Number of people in the meeting. Can be changed while the timer runs; cost is recalculated from that moment on.">Participants <input title="Number of people in the meeting. Can be changed while the timer runs; cost is recalculated from that moment on." id="n" type="number" min="1" value="6"></label>
+  <label title="Average gross annual salary per participant, in the selected currency.">Avg. annual salary <input title="Average gross annual salary per participant, in the selected currency." id="salary" type="number" min="0" step="1000" value="65000"></label>
+  <label title="Multiplier for employer costs on top of salary (social contributions, benefits, office). 1.0 = salary only; 1.2–1.3 is typical.">Employer cost factor <input title="Multiplier for employer costs on top of salary (social contributions, benefits, office). 1.0 = salary only; 1.2–1.3 is typical." id="factor" type="number" min="1" step="0.05" value="1.2"></label>
+  <label title="Productive working hours per person per year, used to convert annual salary to an hourly rate. ~1720 for a 40h week minus holidays and vacation.">Working hours / year <input title="Productive working hours per person per year, used to convert annual salary to an hourly rate. ~1720 for a 40h week minus holidays and vacation." id="hours" type="number" min="1" value="1720"></label>
+  <label title="Currency used to display the cost.">Currency <select title="Currency used to display the cost." id="cur"><option>EUR</option><option>USD</option><option>GBP</option><option>CHF</option></select></label>
+  <label title="Corner of the screen where the cost overlay is shown.">Position <select title="Corner of the screen where the cost overlay is shown." id="pos"><option value="br">Bottom right</option><option value="bl">Bottom left</option><option value="tr">Top right</option><option value="tl">Top left</option></select></label>
+  <label title="Overlay size multiplier. 1 = default; you can also drag the corner grip on the overlay (double-click it to reset).">Overlay size <input title="Overlay size multiplier. 1 = default; you can also drag the corner grip on the overlay (double-click it to reset)." id="scale" type="number" min="0.4" max="4" step="0.1" value="1"></label>
+  <div class="row"><button id="start" class="primary" title="Start or pause the timer (Space)">Start</button><button id="reset" title="Stop the timer and set time and cost back to zero (R)">Reset</button><button id="info-btn" title="Show or hide the calculation details (salary, employer factor, hours/year, cost per person) in the overlay (I)">Details</button></div>
+  <div class="hint" title="Keyboard shortcuts. In OBS, use them in the Interact window after clicking inside the page."><b>Space</b><span>start / pause</span><b>R</b><span>reset</span><b>+ / −</b><span>participants</span><b>I</b><span>calculation details</span><b>H / Esc</b><span>show or hide this panel</span></div>
+</div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const P=new URLSearchParams(location.search);
+const fields=['n','salary','factor','hours','cur','pos','scale'];
+// URL params override saved values (browser only: OBS "Local file" passes none)
+let saved={};try{saved=JSON.parse(localStorage.getItem('mc')||'{}')}catch(e){}
+// an unknown select value (e.g. cur=XYZ) leaves selectedIndex -1; fall back to the first option instead of crashing Intl
+fields.forEach(f=>{const v=P.get(f)??saved[f];if(v!=null){$(f).value=v;if($(f).selectedIndex<0)$(f).selectedIndex=0}});
+document.body.classList.add('hidepanel'); // panel starts hidden: open with the gear, H or Esc
+if(!P.has('overlay')&&!window.obsstudio)document.body.classList.add('page'); // OBS's browser always gets the transparent background: "Local file" passes no URL params
+
+let running=false,acc=0,t0=0; // acc = elapsed ms before current run
+const cfg=()=>({n:+$('n').value||0,salary:+$('salary').value||0,factor:+$('factor').value||1,hours:+$('hours').value||1720,cur:$('cur').value});
+const save=()=>{try{localStorage.setItem('mc',JSON.stringify(Object.fromEntries(fields.map(f=>[f,$(f).value]))))}catch(e){}};
+let fmt;const mkfmt=()=>{fmt=new Intl.NumberFormat('en-US',{style:'currency',currency:$('cur').value});$('ghost').textContent=fmt.format(9999.99)};
+mkfmt();
+
+// cost integrates over time so participant changes mid-meeting are handled correctly
+let costAcc=0,lastTick=performance.now();
+function tick(){
+  const now=performance.now(),c=cfg();
+  const perSec=c.n*c.salary*c.factor/c.hours/3600;
+  if(running)costAcc+=perSec*(now-lastTick)/1000;
+  lastTick=now;
+  const el=acc+(running?now-t0:0),s=Math.floor(el/1000);
+  $('time').textContent=[s/3600,s/60%60,s%60].map(x=>String(Math.floor(x)).padStart(2,'0')).join(':');
+  $('val').textContent=fmt.format(costAcc);
+  $('ppl').textContent=c.n;
+  const f0=new Intl.NumberFormat('en-US',{style:'currency',currency:c.cur,maximumFractionDigits:0});
+  $('rate').textContent=f0.format(perSec*3600);
+  $('status').className=running?'running':costAcc>0?'paused':'';
+  $('info').innerHTML=`${f0.format(c.salary)}/yr × ${c.factor.toFixed(2)} ÷ ${c.hours} h/yr<br>= ${f0.format(c.salary*c.factor/c.hours)}/h per person`;
+  $('dock').className=$('pos').value;
+  $('pill').style.zoom=Math.min(4,Math.max(.4,+$('scale').value||1));
+  requestAnimationFrame(tick);
+}
+function toggle(){if(running){acc+=performance.now()-t0}else{t0=performance.now()}running=!running;$('start').textContent=running?'Pause':'Start'}
+function reset(){running=false;acc=0;costAcc=0;$('start').textContent='Start'}
+$('start').onclick=toggle;$('reset').onclick=reset;$('pill').onclick=toggle;
+$('close').onclick=()=>document.body.classList.add('hidepanel');
+$('gear').onclick=e=>{e.stopPropagation();document.body.classList.toggle('hidepanel')}; // don't toggle the timer
+const info=()=>document.body.classList.toggle('showinfo');
+$('info-btn').onclick=info;
+if(P.has('info'))info();
+// drag grip: moving away from the screen corner grows the overlay
+const grip=$('grip');let drag=null;
+grip.onclick=e=>e.stopPropagation(); // don't toggle the timer
+grip.ondblclick=()=>{$('scale').value=1;save()};
+grip.onpointerdown=e=>{e.stopPropagation();grip.setPointerCapture(e.pointerId);
+  drag={x:e.clientX,y:e.clientY,s:+$('scale').value||1,w:$('pill').getBoundingClientRect().width,p:$('pos').value}};
+grip.onpointermove=e=>{if(!drag)return;
+  const d=((e.clientX-drag.x)*(drag.p[1]==='r'?-1:1)+(e.clientY-drag.y)*(drag.p[0]==='b'?-1:1))/2;
+  $('scale').value=Math.min(4,Math.max(.4,drag.s*(drag.w+d)/drag.w)).toFixed(2)};
+grip.onpointerup=grip.onpointercancel=()=>{if(drag){drag=null;save()}};
+fields.forEach(f=>$(f).addEventListener('input',()=>{save();if(f==='cur')mkfmt()}));
+document.addEventListener('keydown',e=>{
+  if((e.target.tagName==='INPUT'||e.target.tagName==='SELECT')&&e.key!=='Escape')return;
+  if(e.code==='Space'||e.key===' '){e.preventDefault();toggle()} // OBS may leave e.code empty
+  else if(e.key==='r'||e.key==='R')reset();
+  else if(e.key==='h'||e.key==='H'||e.key==='Escape')document.body.classList.toggle('hidepanel');
+  else if(e.key==='i'||e.key==='I')info();
+  else if(e.key==='+'){$('n').value=+$('n').value+1;save()}
+  else if(e.key==='-'&&$('n').value>1){$('n').value=+$('n').value-1;save()}
+});
+if(P.has('autostart'))toggle();
+tick();
+</script>
+</body>
+</html>

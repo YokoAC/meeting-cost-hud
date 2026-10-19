@@ -1,0 +1,3 @@
+# Line endings are fixed here, not left to each machine's core.autocrlf.
+# eol=lf also fixes the checkout; text=auto alone defers to core.eol (CRLF on Windows).
+* text=auto eol=lf
