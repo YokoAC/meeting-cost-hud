@@ -6,7 +6,7 @@
 <title>Meeting Cost HUD</title>
 <style>
   /* dark HUD look: near-black glass, green/amber status, blue accents, thin rules */
-  :root{--fg:#f2f2f2;--bg:rgba(16,16,20,.92);--blue:#58a6ff;--green:#56d364;--amber:#e3b341;--grey:#8b949e;
+  :root{--fg:#f2f2f2;--bg:rgba(16,16,20,.92);--blue:#58a6ff;--green:#56d364;--amber:#e3b341;--red:#f85149;--grey:#8b949e;
         --rule:rgba(255,255,255,.16);--field:rgba(255,255,255,.08);--line:rgba(255,255,255,.2);--mono:"Cascadia Mono",Consolas,monospace}
   html,body{margin:0;height:100%;background:transparent;font:500 15px/1.35 "Segoe UI",system-ui,sans-serif;color:var(--fg)}
   body.page{background:#0d0d10}
@@ -22,7 +22,10 @@
   /* fixed 10px state icon so the overlay never changes width: ring = ready, dot = running, bars = paused */
   #dot{display:inline-block;box-sizing:border-box;width:10px;height:10px;margin-right:7px;border:2px solid;border-radius:50%}
   .running #dot{background:currentColor}.paused #dot{border-width:0 3px;border-radius:0}
-  #time{font:14px var(--mono);color:var(--blue)}
+  #time{font:14px var(--mono);color:var(--blue)}#time.over{color:var(--red)}
+  /* planned-length bar: always takes its space (hidden when off), so the HUD keeps its size; blue → amber at 80% → red when over */
+  #bar{height:3px;margin-top:8px;border-radius:2px;background:var(--rule)}#bar.off{visibility:hidden}
+  #bar i{display:block;width:0;height:100%;border-radius:inherit;background:var(--blue)}#bar.warn i{background:var(--amber)}#bar.over i{background:var(--red)}
   #cost{display:grid;margin-top:6px;font-size:40px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
   /* invisible "9,999.99" in the same grid cell reserves width, so the overlay does not grow below 10,000 */
   #cost>span{grid-area:1/1}#ghost{visibility:hidden}
@@ -70,6 +73,7 @@
   <div id="cost"><span id="val">€0.00</span><span id="ghost"></span></div>
   <div class="sub"><span id="ppl">0</span> people · <span id="rate">0</span>/h</div>
   <div id="info"></div>
+  <div id="bar" title="Progress through the planned meeting length: blue, amber from 80%, red when over time"><i></i></div>
   <div id="grip" title="Drag to resize the overlay. Double-click to reset to default size."></div>
 </div>
 
@@ -83,6 +87,7 @@
   <label title="Corner of the screen where the cost overlay is shown.">Position <select title="Corner of the screen where the cost overlay is shown." id="pos"><option value="br">Bottom right</option><option value="bl">Bottom left</option><option value="tr">Top right</option><option value="tl">Top left</option></select></label>
   <label title="Overlay size multiplier. 1 = default; you can also drag the corner grip on the overlay (double-click it to reset).">Overlay size <input title="Overlay size multiplier. 1 = default; you can also drag the corner grip on the overlay (double-click it to reset)." id="scale" type="number" min="0.4" max="4" step="0.1" value="1"></label>
   <label title="A small burning-money animation plays each time the cost passes a multiple of this amount. Leave empty for auto (about every 10 minutes at the current cost per hour); 0 = off.">Burn every <input title="A small burning-money animation plays each time the cost passes a multiple of this amount. Leave empty for auto (about every 10 minutes at the current cost per hour); 0 = off." id="burn" type="number" min="0" placeholder="auto"></label>
+  <label title="Planned meeting length in minutes. The bar under the cost fills up, turns amber at 80% and red when over time; going over plays the burn animation once. 0 = off.">Planned length (min) <input title="Planned meeting length in minutes. The bar under the cost fills up, turns amber at 80% and red when over time; going over plays the burn animation once. 0 = off." id="plan" type="number" min="0" step="5" value="30"></label>
   <div class="row"><button id="start" class="primary" title="Start or pause the timer (Space)">Start</button><button id="reset" title="Stop the timer and set time and cost back to zero (R)">Reset</button><button id="info-btn" title="Show or hide the calculation details (salary, employer factor, hours/year, cost per person) in the overlay (I)">Details</button><button id="burn-btn" title="Burn money: play the full burning-money animation over the camera image (B). The timer keeps running.">Burn</button></div>
   <div class="hint" title="Keyboard shortcuts. In OBS, use them in the Interact window after clicking inside the page."><b>Space</b><span>start / pause</span><b>R</b><span>reset</span><b>+ / −</b><span>participants</span><b>I</b><span>calculation details</span><b>B</b><span>burn money</span><b>H / Esc</b><span>show or hide this panel</span></div>
 </div>
@@ -92,7 +97,7 @@
 <script>
 const $=id=>document.getElementById(id);
 const P=new URLSearchParams(location.search);
-const fields=['n','salary','factor','hours','cur','pos','scale','burn'];
+const fields=['n','salary','factor','hours','cur','pos','scale','burn','plan'];
 // URL params override saved values (browser only: OBS "Local file" passes none)
 let saved={};try{saved=JSON.parse(localStorage.getItem('mc')||'{}')}catch(e){}
 // an unknown select value (e.g. cur=XYZ) leaves selectedIndex -1; fall back to the first option instead of crashing Intl
@@ -123,6 +128,12 @@ function tick(){
   $('info').innerHTML=`${f0.format(c.salary)}/yr × ${c.factor.toFixed(2)} ÷ ${c.hours} h/yr<br>= ${f0.format(c.salary*c.factor/c.hours)}/h per person`;
   $('dock').className=$('pos').value;
   $('pill').style.zoom=Math.min(4,Math.max(.4,+$('scale').value||1));
+  // planned length: bar + red time; crossing into overtime while running burns once (a plan change only re-arms, never fires)
+  const pm=Math.max(0,+$('plan').value||0),fr=pm?el/(pm*60000):0,over=fr>=1;
+  $('bar').className=!pm?'off':over?'over':fr>=.8?'warn':'';$('bar').firstChild.style.width=Math.min(1,fr)*100+'%';
+  $('time').className=over?'over':'';
+  if(pm!==lastPlan)lastPlan=pm;else if(over&&!wasOver&&running)burnNow('Overtime: ');
+  wasOver=over;
   // burn threshold: empty = auto (cost of ~10 min, rounded), 0 = off; a threshold change only moves the next mark, it never fires
   const auto=perSec>0?Math.max(1,nice(perSec*600)):0,bv=$('burn').value,T=bv===''?auto:Math.max(0,+bv||0),ph=`auto (${auto})`;
   if($('burn').placeholder!==ph)$('burn').placeholder=ph;
@@ -132,6 +143,7 @@ function tick(){
     mark=(Math.floor(costAcc/T)+1)*T}
   requestAnimationFrame(tick);
 }
+let lastPlan=-1,wasOver=false; // planned length seen last frame, and whether that frame was already over time
 let mark=0,markT=-1; // next cost at which the small burn fires, and the threshold it was computed for
 const nice=x=>{const p=10**Math.floor(Math.log10(x)),m=x/p;return(m<1.5?1:m<3.5?2:m<7.5?5:10)*p}; // round to 1/2/5 × 10^k
 // big = full burn across the screen (button / B), else a small burst near the HUD plus a rising label
@@ -156,20 +168,20 @@ function burn(big,label){
   }
   if(!label)return;
   const t=document.createElement('div');t.className='tag';t.textContent=label;$('fx').append(t);
-  // full burn: big label in the screen centre (capped so it fits the width); burst: small label rising from the HUD
-  const [lx,ly,ls,dy,ms]=big?[innerWidth/2,innerHeight/2,Math.min(2.5*z,innerWidth/350),-40,3500]:[ox,oy,z,sy*110,1800],
+  // full burn: big label in the screen centre (capped to 90% of the width); burst: small label rising from the HUD
+  const [lx,ly,ls,dy,ms]=big?[innerWidth/2,innerHeight/2,Math.min(2.5*z,innerWidth*.9/t.offsetWidth),-40,3500]:[ox,oy,z,sy*110,1800],
     L=d=>`translate(${lx}px,${ly+d*z}px) translate(-50%,-50%) scale(${ls})`;
   t.animate([{transform:L(0),opacity:0},{opacity:1,offset:.15},{opacity:1,offset:.7},{transform:L(dy),opacity:0}],{duration:ms,easing:'ease-out'}).onfinish=()=>t.remove();
 }
 function toggle(){if(running){acc+=performance.now()-t0}else{t0=performance.now()}running=!running;$('start').textContent=running?'Pause':'Start'}
-function reset(){running=false;acc=0;costAcc=0;markT=-1;$('start').textContent='Start'}
+function reset(){running=false;acc=0;costAcc=0;markT=-1;wasOver=false;$('start').textContent='Start'}
 $('start').onclick=toggle;$('reset').onclick=reset;$('pill').onclick=toggle;
 $('close').onclick=()=>document.body.classList.add('hidepanel');
 $('gear').onclick=e=>{e.stopPropagation();document.body.classList.toggle('hidepanel')}; // don't toggle the timer
 const info=()=>document.body.classList.toggle('showinfo');
 $('info-btn').onclick=info;
-const burnNow=()=>{const c=cfg();burn(true,new Intl.NumberFormat('en-US',{style:'currency',currency:c.cur,maximumFractionDigits:0}).format(c.n*c.salary*c.factor/c.hours)+'/h going up in flames')};
-$('burn-btn').onclick=burnNow;
+const burnNow=(pre='')=>{const c=cfg();burn(true,pre+new Intl.NumberFormat('en-US',{style:'currency',currency:c.cur,maximumFractionDigits:0}).format(c.n*c.salary*c.factor/c.hours)+'/h going up in flames')};
+$('burn-btn').onclick=()=>burnNow();
 if(P.has('info'))info();
 // drag grip: moving away from the screen corner grows the overlay
 const grip=$('grip');let drag=null;

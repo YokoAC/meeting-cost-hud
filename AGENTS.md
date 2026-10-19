@@ -17,3 +17,4 @@
 - Space check uses `e.key===' '` too: OBS Interact may send an empty `e.code`. Hotkeys are ignored while an input or select has focus (except Esc).
 - Settings persist in `localStorage` key `mc`; every storage access is wrapped in try/catch. URL params (see README) override them.
 - Burn animations live in their own full-screen `#fx` layer (`pointer-events:none`), never inside `#pill`. A change of the burn threshold only moves the next mark; it must not fire a burst.
+- Status colours (green running, amber paused) belong to `#status`; planned-length colours (amber at 80%, red over) only go on `#bar` and `#time`. `#bar` always keeps its space (`visibility:hidden` when off). Like the burn threshold, changing the planned length never fires the overtime burn.
