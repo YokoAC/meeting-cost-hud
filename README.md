@@ -14,7 +14,7 @@ Resize: hover the overlay and drag the corner grip, or set **Overlay size** in t
 
 Burning money: press **Burn** in the panel (or B) to let banknotes fly across the screen and burn up, with the current cost per hour in the centre (e.g. "€272/h going up in flames"). The timer keeps running. A smaller burst plays each time the cost passes a multiple of **Burn every**: leave it empty for auto (about every 10 minutes at the current cost per hour, rounded to 1/2/5 × 10ⁿ, e.g. €50), enter an amount, or 0 to turn it off.
 
-Planned length: a thin bar under the cost fills up over **Planned length (min)** (default 30). It turns amber at 80%; when the meeting runs over, the bar and the elapsed time turn red and the full burn plays once ("Overtime: €272/h going up in flames"). 0 turns it off.
+Planned length: a thin bar under the cost fills up over **Planned length (min)** (default 30). It turns amber at 80%; when the meeting runs over, the bar and the elapsed time turn red and the full burn plays once ("Overtime: €272/h going up in flames"). Short reminders pop up at halfway ("Halfway · 15 min left") and, for meetings over 10 minutes, at "5 min left · time to wrap up". 0 turns all of this off.
 
 URL parameters (browser only; OBS's **Local file** ignores them) override saved settings: `n`, `salary`, `factor`, `hours`, `cur` (EUR, USD, GBP, CHF), `pos` (br, bl, tr, tl), `scale` (0.4–4), `burn` (0 = off), `plan` (minutes, 0 = off), plus flags `overlay` (transparent background), `autostart` and `info` (show calculation details). Example: `meeting-cost.html?n=8&salary=70000&pos=tr&autostart`
 
