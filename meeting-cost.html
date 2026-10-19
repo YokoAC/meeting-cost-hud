@@ -64,6 +64,7 @@
         background:radial-gradient(ellipse at 50% 100%,#fff3a8 0,#ffb02e 30%,#ff5a1f 55%,transparent 72%)}
   @keyframes flick{to{transform:scaleY(1.25) scaleX(.9)}}
   .tag{position:absolute;left:0;top:0;white-space:nowrap;font-size:20px;font-weight:700;color:var(--amber);text-shadow:0 0 8px #ff5a1f,0 2px 4px #000}
+  .tag.blue{color:var(--blue);text-shadow:0 0 8px rgba(88,166,255,.6),0 2px 4px #000}.tag.warn{text-shadow:0 0 8px rgba(227,179,65,.6),0 2px 4px #000}
 </style>
 </head>
 <body>
@@ -128,12 +129,14 @@ function tick(){
   $('info').innerHTML=`${f0.format(c.salary)}/yr × ${c.factor.toFixed(2)} ÷ ${c.hours} h/yr<br>= ${f0.format(c.salary*c.factor/c.hours)}/h per person`;
   $('dock').className=$('pos').value;
   $('pill').style.zoom=Math.min(4,Math.max(.4,+$('scale').value||1));
-  // planned length: bar + red time; crossing into overtime while running burns once (a plan change only re-arms, never fires)
-  const pm=Math.max(0,+$('plan').value||0),fr=pm?el/(pm*60000):0,over=fr>=1;
+  // planned length: bar + red time; while running, crossing halfway / 5 min left (plans over 10 min) / overtime pops once
+  // stage = milestones passed; a plan change only re-arms, never fires
+  const pm=Math.max(0,+$('plan').value||0),fr=pm?el/(pm*60000):0,over=fr>=1,st=over?3:pm>10&&el>=(pm-5)*60000?2:fr>=.5?1:0;
   $('bar').className=!pm?'off':over?'over':fr>=.8?'warn':'';$('bar').firstChild.style.width=Math.min(1,fr)*100+'%';
   $('time').className=over?'over':'';
-  if(pm!==lastPlan)lastPlan=pm;else if(over&&!wasOver&&running)burnNow('Overtime: ');
-  wasOver=over;
+  if(pm!==lastPlan)lastPlan=pm;
+  else if(st>stage&&running)st===3?burnNow('Overtime: '):st===2?pop('5 min left · time to wrap up',false,'warn',4000):pop(`Halfway · ${Math.round(pm/2)} min left`,false,'blue',4000);
+  stage=st;
   // burn threshold: empty = auto (cost of ~10 min, rounded), 0 = off; a threshold change only moves the next mark, it never fires
   const auto=perSec>0?Math.max(1,nice(perSec*600)):0,bv=$('burn').value,T=bv===''?auto:Math.max(0,+bv||0),ph=`auto (${auto})`;
   if($('burn').placeholder!==ph)$('burn').placeholder=ph;
@@ -143,7 +146,7 @@ function tick(){
     mark=(Math.floor(costAcc/T)+1)*T}
   requestAnimationFrame(tick);
 }
-let lastPlan=-1,wasOver=false; // planned length seen last frame, and whether that frame was already over time
+let lastPlan=-1,stage=0; // planned length seen last frame, and the milestone stage reached then (0 none, 1 half, 2 five left, 3 over)
 let mark=0,markT=-1; // next cost at which the small burn fires, and the threshold it was computed for
 const nice=x=>{const p=10**Math.floor(Math.log10(x)),m=x/p;return(m<1.5?1:m<3.5?2:m<7.5?5:10)*p}; // round to 1/2/5 × 10^k
 // big = full burn across the screen (button / B), else a small burst near the HUD plus a rising label
@@ -166,15 +169,23 @@ function burn(big,label){
       {transform:T(tx,ty+45*z,.5,a),filter:char+' blur(3px)',boxShadow:'0 0 0 0 transparent',opacity:0}],o).onfinish=()=>b.remove();
     b.animate([{opacity:0},{opacity:0,offset:.5},{opacity:1,offset:.62},{opacity:1,offset:.82},{opacity:0}],{...o,pseudoElement:'::after'}); // flames
   }
-  if(!label)return;
-  const t=document.createElement('div');t.className='tag';t.textContent=label;$('fx').append(t);
-  // full burn: big label in the screen centre (capped to 90% of the width); burst: small label rising from the HUD
-  const [lx,ly,ls,dy,ms]=big?[innerWidth/2,innerHeight/2,Math.min(2.5*z,innerWidth*.9/t.offsetWidth),-40,3500]:[ox,oy,z,sy*110,1800],
-    L=d=>`translate(${lx}px,${ly+d*z}px) translate(-50%,-50%) scale(${ls})`;
-  t.animate([{transform:L(0),opacity:0},{opacity:1,offset:.15},{opacity:1,offset:.7},{transform:L(dy),opacity:0}],{duration:ms,easing:'ease-out'}).onfinish=()=>t.remove();
+  if(label)pop(label,big);
+}
+let popFree=0; // small labels queue until this time, so a reminder and a burn label never overlap
+// big: label in the screen centre (capped to 90% of the width); else a label rising from the HUD edge facing the centre, coloured by cls
+function pop(label,big,cls='',ms=big?3500:1800){
+  const now=performance.now(),wait=big?0:Math.max(0,popFree-now);
+  if(!big)popFree=now+wait+ms;
+  setTimeout(()=>{
+    const r=$('pill').getBoundingClientRect(),z=+$('pill').style.zoom||1,sy=$('pos').value[0]==='b'?-1:1,t=document.createElement('div');
+    t.className='tag '+cls;t.textContent=label;$('fx').append(t);
+    const [lx,ly,ls,dy]=big?[innerWidth/2,innerHeight/2,Math.min(2.5*z,innerWidth*.9/t.offsetWidth),-40]:[r.left+r.width/2,(sy<0?r.top:r.bottom)+sy*16*z,z,sy*90],
+      L=d=>`translate(${lx}px,${ly+d*z}px) translate(-50%,-50%) scale(${ls})`;
+    t.animate([{transform:L(0),opacity:0},{opacity:1,offset:.15},{opacity:1,offset:.7},{transform:L(dy),opacity:0}],{duration:ms,easing:'ease-out'}).onfinish=()=>t.remove();
+  },wait);
 }
 function toggle(){if(running){acc+=performance.now()-t0}else{t0=performance.now()}running=!running;$('start').textContent=running?'Pause':'Start'}
-function reset(){running=false;acc=0;costAcc=0;markT=-1;wasOver=false;$('start').textContent='Start'}
+function reset(){running=false;acc=0;costAcc=0;markT=-1;stage=0;$('start').textContent='Start'}
 $('start').onclick=toggle;$('reset').onclick=reset;$('pill').onclick=toggle;
 $('close').onclick=()=>document.body.classList.add('hidepanel');
 $('gear').onclick=e=>{e.stopPropagation();document.body.classList.toggle('hidepanel')}; // don't toggle the timer
