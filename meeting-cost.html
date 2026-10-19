@@ -52,6 +52,15 @@
   #pill:hover #gear{opacity:.6}#gear:hover,#gear:focus-visible{opacity:1!important}
   .br #grip{top:4px;left:4px;border-width:2px 0 0 2px;cursor:nwse-resize}.tl #grip{bottom:4px;right:4px;border-width:0 2px 2px 0;cursor:nwse-resize}
   .bl #grip{top:4px;right:4px;border-width:2px 2px 0 0;cursor:nesw-resize}.tr #grip{bottom:4px;left:4px;border-width:0 0 2px 2px;cursor:nesw-resize}
+  /* burning money: own full-screen layer, so the HUD never changes size; bills are moved by the Web Animations API */
+  #fx{position:fixed;inset:0;overflow:hidden;pointer-events:none}
+  .bill{position:absolute;left:-32px;top:-16px;box-sizing:border-box;display:grid;place-items:center;width:64px;height:32px;border:2px solid #2d5e37;border-radius:3px;
+        background:linear-gradient(135deg,#a8dba8,#5ea86a 55%,#3c7d48);box-shadow:inset 0 0 0 3px #b9e2b6}
+  .bill b{display:grid;place-items:center;width:24px;height:18px;border:1.5px solid #2d5e37;border-radius:50%;background:#d3eecf;color:#2d5e37;font:700 10px "Segoe UI",sans-serif}
+  .bill::after{content:"";position:absolute;inset:-60% -15% 30%;opacity:0;filter:blur(2px);transform-origin:50% 100%;animation:flick .12s infinite alternate;
+        background:radial-gradient(ellipse at 50% 100%,#fff3a8 0,#ffb02e 30%,#ff5a1f 55%,transparent 72%)}
+  @keyframes flick{to{transform:scaleY(1.25) scaleX(.9)}}
+  .tag{position:absolute;left:0;top:0;white-space:nowrap;font-size:20px;font-weight:700;color:var(--amber);text-shadow:0 0 8px #ff5a1f,0 2px 4px #000}
 </style>
 </head>
 <body>
@@ -73,15 +82,17 @@
   <label title="Currency used to display the cost.">Currency <select title="Currency used to display the cost." id="cur"><option>EUR</option><option>USD</option><option>GBP</option><option>CHF</option></select></label>
   <label title="Corner of the screen where the cost overlay is shown.">Position <select title="Corner of the screen where the cost overlay is shown." id="pos"><option value="br">Bottom right</option><option value="bl">Bottom left</option><option value="tr">Top right</option><option value="tl">Top left</option></select></label>
   <label title="Overlay size multiplier. 1 = default; you can also drag the corner grip on the overlay (double-click it to reset).">Overlay size <input title="Overlay size multiplier. 1 = default; you can also drag the corner grip on the overlay (double-click it to reset)." id="scale" type="number" min="0.4" max="4" step="0.1" value="1"></label>
-  <div class="row"><button id="start" class="primary" title="Start or pause the timer (Space)">Start</button><button id="reset" title="Stop the timer and set time and cost back to zero (R)">Reset</button><button id="info-btn" title="Show or hide the calculation details (salary, employer factor, hours/year, cost per person) in the overlay (I)">Details</button></div>
-  <div class="hint" title="Keyboard shortcuts. In OBS, use them in the Interact window after clicking inside the page."><b>Space</b><span>start / pause</span><b>R</b><span>reset</span><b>+ / −</b><span>participants</span><b>I</b><span>calculation details</span><b>H / Esc</b><span>show or hide this panel</span></div>
+  <label title="A small burning-money animation plays each time the cost passes a multiple of this amount. Leave empty for auto (about every 10 minutes at the current cost per hour); 0 = off.">Burn every <input title="A small burning-money animation plays each time the cost passes a multiple of this amount. Leave empty for auto (about every 10 minutes at the current cost per hour); 0 = off." id="burn" type="number" min="0" placeholder="auto"></label>
+  <div class="row"><button id="start" class="primary" title="Start or pause the timer (Space)">Start</button><button id="reset" title="Stop the timer and set time and cost back to zero (R)">Reset</button><button id="info-btn" title="Show or hide the calculation details (salary, employer factor, hours/year, cost per person) in the overlay (I)">Details</button><button id="burn-btn" title="Burn money: play the full burning-money animation over the camera image (B). The timer keeps running.">Burn</button></div>
+  <div class="hint" title="Keyboard shortcuts. In OBS, use them in the Interact window after clicking inside the page."><b>Space</b><span>start / pause</span><b>R</b><span>reset</span><b>+ / −</b><span>participants</span><b>I</b><span>calculation details</span><b>B</b><span>burn money</span><b>H / Esc</b><span>show or hide this panel</span></div>
 </div>
 </div>
+<div id="fx"></div>
 
 <script>
 const $=id=>document.getElementById(id);
 const P=new URLSearchParams(location.search);
-const fields=['n','salary','factor','hours','cur','pos','scale'];
+const fields=['n','salary','factor','hours','cur','pos','scale','burn'];
 // URL params override saved values (browser only: OBS "Local file" passes none)
 let saved={};try{saved=JSON.parse(localStorage.getItem('mc')||'{}')}catch(e){}
 // an unknown select value (e.g. cur=XYZ) leaves selectedIndex -1; fall back to the first option instead of crashing Intl
@@ -112,15 +123,53 @@ function tick(){
   $('info').innerHTML=`${f0.format(c.salary)}/yr × ${c.factor.toFixed(2)} ÷ ${c.hours} h/yr<br>= ${f0.format(c.salary*c.factor/c.hours)}/h per person`;
   $('dock').className=$('pos').value;
   $('pill').style.zoom=Math.min(4,Math.max(.4,+$('scale').value||1));
+  // burn threshold: empty = auto (cost of ~10 min, rounded), 0 = off; a threshold change only moves the next mark, it never fires
+  const auto=perSec>0?Math.max(1,nice(perSec*600)):0,bv=$('burn').value,T=bv===''?auto:Math.max(0,+bv||0),ph=`auto (${auto})`;
+  if($('burn').placeholder!==ph)$('burn').placeholder=ph;
+  if(T!==markT){markT=T;mark=(Math.floor(costAcc/T)+1)*T}
+  else if(T>0&&costAcc>=mark){
+    burn(false,new Intl.NumberFormat('en-US',{style:'currency',currency:c.cur,minimumFractionDigits:0,maximumFractionDigits:2}).format(mark)+' burned');
+    mark=(Math.floor(costAcc/T)+1)*T}
   requestAnimationFrame(tick);
 }
+let mark=0,markT=-1; // next cost at which the small burn fires, and the threshold it was computed for
+const nice=x=>{const p=10**Math.floor(Math.log10(x)),m=x/p;return(m<1.5?1:m<3.5?2:m<7.5?5:10)*p}; // round to 1/2/5 × 10^k
+// big = full burn across the screen (button / B), else a small burst near the HUD plus a rising label
+function burn(big,label){
+  const r=$('pill').getBoundingClientRect(),z=+$('pill').style.zoom||1,p=$('pos').value,sx=p[1]==='r'?-1:1,sy=p[0]==='b'?-1:1,
+    ox=r.left+r.width/2,oy=r.top+r.height/2,sym=fmt.formatToParts(0).find(t=>t.type==='currency').value,
+    T=(x,y,s,a)=>`translate(${x}px,${y}px) rotate(${a}deg) scale(${s*z})`,
+    fire='sepia(1) saturate(5) hue-rotate(-25deg) brightness(1.15)',char='grayscale(1) brightness(.3)';
+  for(let i=0;i<(big?22:5);i++){
+    const b=document.createElement('div');b.className='bill';b.innerHTML=`<b>${sym}</b>`;$('fx').append(b);
+    const tx=big?Math.random()*innerWidth:ox+sx*(40+Math.random()*220)*z,ty=big?Math.random()*innerHeight:oy+sy*(30+Math.random()*150)*z,
+      mx=(ox+tx)/2,my=Math.min(oy,ty)-80*z,a=Math.random()*720-360,
+      o={duration:big?3000+Math.random()*800:1400+Math.random()*300,delay:Math.random()*(big?600:150),easing:'ease-out',fill:'backwards'};
+    b.animate([
+      {transform:T(ox,oy,.3,0),opacity:0},
+      {transform:T(mx,my,1,a*.4),opacity:1,offset:.25},
+      {transform:T(tx,ty,1,a*.7),filter:'none',boxShadow:'0 0 0 0 transparent',offset:.5},
+      {transform:T(tx,ty+10*z,.95,a*.8),filter:fire,boxShadow:'0 0 16px 6px #ff7a1a',offset:.68},
+      {transform:T(tx,ty+25*z,.8,a*.9),filter:char,boxShadow:'0 0 6px 2px #ff4a0a',opacity:1,offset:.85},
+      {transform:T(tx,ty+45*z,.5,a),filter:char+' blur(3px)',boxShadow:'0 0 0 0 transparent',opacity:0}],o).onfinish=()=>b.remove();
+    b.animate([{opacity:0},{opacity:0,offset:.5},{opacity:1,offset:.62},{opacity:1,offset:.82},{opacity:0}],{...o,pseudoElement:'::after'}); // flames
+  }
+  if(!label)return;
+  const t=document.createElement('div');t.className='tag';t.textContent=label;$('fx').append(t);
+  // full burn: big label in the screen centre (capped so it fits the width); burst: small label rising from the HUD
+  const [lx,ly,ls,dy,ms]=big?[innerWidth/2,innerHeight/2,Math.min(2.5*z,innerWidth/350),-40,3500]:[ox,oy,z,sy*110,1800],
+    L=d=>`translate(${lx}px,${ly+d*z}px) translate(-50%,-50%) scale(${ls})`;
+  t.animate([{transform:L(0),opacity:0},{opacity:1,offset:.15},{opacity:1,offset:.7},{transform:L(dy),opacity:0}],{duration:ms,easing:'ease-out'}).onfinish=()=>t.remove();
+}
 function toggle(){if(running){acc+=performance.now()-t0}else{t0=performance.now()}running=!running;$('start').textContent=running?'Pause':'Start'}
-function reset(){running=false;acc=0;costAcc=0;$('start').textContent='Start'}
+function reset(){running=false;acc=0;costAcc=0;markT=-1;$('start').textContent='Start'}
 $('start').onclick=toggle;$('reset').onclick=reset;$('pill').onclick=toggle;
 $('close').onclick=()=>document.body.classList.add('hidepanel');
 $('gear').onclick=e=>{e.stopPropagation();document.body.classList.toggle('hidepanel')}; // don't toggle the timer
 const info=()=>document.body.classList.toggle('showinfo');
 $('info-btn').onclick=info;
+const burnNow=()=>{const c=cfg();burn(true,new Intl.NumberFormat('en-US',{style:'currency',currency:c.cur,maximumFractionDigits:0}).format(c.n*c.salary*c.factor/c.hours)+'/h going up in flames')};
+$('burn-btn').onclick=burnNow;
 if(P.has('info'))info();
 // drag grip: moving away from the screen corner grows the overlay
 const grip=$('grip');let drag=null;
@@ -139,6 +188,7 @@ document.addEventListener('keydown',e=>{
   else if(e.key==='r'||e.key==='R')reset();
   else if(e.key==='h'||e.key==='H'||e.key==='Escape')document.body.classList.toggle('hidepanel');
   else if(e.key==='i'||e.key==='I')info();
+  else if(e.key==='b'||e.key==='B')burnNow();
   else if(e.key==='+'){$('n').value=+$('n').value+1;save()}
   else if(e.key==='-'&&$('n').value>1){$('n').value=+$('n').value-1;save()}
 });
