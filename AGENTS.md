@@ -1,6 +1,6 @@
 # AGENTS.md
 
-`meeting-cost.html` is a live meeting cost timer, used as an OBS Studio Browser Source (Local file) over a webcam and sent to MS Teams via OBS Virtual Camera (Windows). User-facing usage lives in `README.md`, OBS setup and the importable scene in `obs/` (`obs/README.md`); keep them in sync with behaviour changes.
+`meeting-cost.html` is a live meeting cost timer, used as an OBS Studio Browser Source (Local file) over a webcam and sent to a video call app via OBS Virtual Camera (Windows; tested with Microsoft Teams, works with any app that accepts a webcam). User-facing usage lives in `README.md`, OBS setup and the importable scene in `obs/` (`obs/README.md`); keep them in sync with behaviour changes.
 
 ## Constraints
 
