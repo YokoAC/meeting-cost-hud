@@ -2,6 +2,8 @@
 
 Live meeting cost overlay for OBS Studio and Microsoft Teams, in a single HTML file. Works offline, no dependencies.
 
+**[Try it in your browser](https://yokoac.github.io/meeting-cost-hud/meeting-cost.html)**, or download `meeting-cost.html` and open it locally.
+
 ## Usage
 
 Open `meeting-cost.html` in a browser. Settings start hidden: hover the overlay and click ⚙ (or press H). Enter participants, average annual salary, employer cost factor and working hours per year, then press **Start** or click the overlay. Settings are saved automatically and used next time; **Restore default settings** in the panel sets them back (the timer keeps running).
@@ -21,6 +23,18 @@ URL parameters (browser only; OBS's **Local file** ignores them) override saved 
 ## OBS + Microsoft Teams
 
 Put the HUD over your webcam in OBS Studio and send it to Microsoft Teams via OBS Virtual Camera. Step-by-step guide, a ready-made OBS scene and a test background: [obs/README.md](obs/README.md).
+
+## Demo video
+
+`demo/record.py` re-records the demo video into `demo/out/demo.mp4` (gitignored): the real page in Chromium over a stand-in webcam, with meeting time fast-forwarded. It needs [uv](https://docs.astral.sh/uv/), which fetches Playwright and a temporary ffmpeg; nothing is installed into the repository.
+
+```bash
+uv run --no-project --with playwright playwright install chromium
+```
+
+```bash
+uv run --no-project --with playwright --with imageio-ffmpeg demo/record.py
+```
 
 ## License
 
