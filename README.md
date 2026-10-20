@@ -4,6 +4,8 @@ Live meeting cost overlay for OBS Studio and Microsoft Teams, in a single HTML f
 
 **[Try it in your browser](https://yokoac.github.io/meeting-cost-hud/meeting-cost.html)**, or download `meeting-cost.html` and open it locally.
 
+https://github.com/user-attachments/assets/67162dea-2a2d-47f1-9353-294b8b056454
+
 ## Usage
 
 Open `meeting-cost.html` in a browser. Settings start hidden: hover the overlay and click ⚙ (or press H). Enter participants, average annual salary, employer cost factor and working hours per year, then press **Start** or click the overlay. Settings are saved automatically and used next time; **Restore default settings** in the panel sets them back (the timer keeps running).
