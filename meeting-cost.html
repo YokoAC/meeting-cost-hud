@@ -90,6 +90,7 @@
   <label title="A small burning-money animation plays each time the cost passes a multiple of this amount. Leave empty for auto (about every 10 minutes at the current cost per hour); 0 = off.">Burn every <input title="A small burning-money animation plays each time the cost passes a multiple of this amount. Leave empty for auto (about every 10 minutes at the current cost per hour); 0 = off." id="burn" type="number" min="0" placeholder="auto"></label>
   <label title="Planned meeting length in minutes. The bar under the cost fills up, turns amber at 80% and red when over time; going over plays the burn animation once. 0 = off.">Planned length (min) <input title="Planned meeting length in minutes. The bar under the cost fills up, turns amber at 80% and red when over time; going over plays the burn animation once. 0 = off." id="plan" type="number" min="0" step="5" value="30"></label>
   <div class="row"><button id="start" class="primary" title="Start or pause the timer (Space)">Start</button><button id="reset" title="Stop the timer and set time and cost back to zero (R)">Reset</button><button id="info-btn" title="Show or hide the calculation details (salary, employer factor, hours/year, cost per person) in the overlay (I)">Details</button><button id="burn-btn" title="Burn money: play the full burning-money animation over the camera image (B). The timer keeps running.">Burn</button></div>
+  <div class="row"><button id="defaults" title="Set all settings above back to their defaults (6 people, 65,000 salary, factor 1.2, 1720 h, EUR, bottom right, size 1, burn auto, 30 min). The timer and cost are not touched.">Restore default settings</button></div>
   <div class="hint" title="Keyboard shortcuts. In OBS, use them in the Interact window after clicking inside the page."><b>Space</b><span>start / pause</span><b>R</b><span>reset</span><b>+ / −</b><span>participants</span><b>I</b><span>calculation details</span><b>B</b><span>burn money</span><b>H / Esc</b><span>show or hide this panel</span></div>
 </div>
 </div>
@@ -99,7 +100,7 @@
 const $=id=>document.getElementById(id);
 const P=new URLSearchParams(location.search);
 const fields=['n','salary','factor','hours','cur','pos','scale','burn','plan'];
-// URL params override saved values (browser only: OBS "Local file" passes none)
+// URL params override saved values for this visit only (browser only: OBS "Local file" passes none)
 let saved={};try{saved=JSON.parse(localStorage.getItem('mc')||'{}')}catch(e){}
 // an unknown select value (e.g. cur=XYZ) leaves selectedIndex -1; fall back to the first option instead of crashing Intl
 fields.forEach(f=>{const v=P.get(f)??saved[f];if(v!=null){$(f).value=v;if($(f).selectedIndex<0)$(f).selectedIndex=0}});
@@ -108,7 +109,10 @@ if(!P.has('overlay')&&!window.obsstudio)document.body.classList.add('page'); // 
 
 let running=false,acc=0,t0=0; // acc = elapsed ms before current run
 const cfg=()=>({n:+$('n').value||0,salary:+$('salary').value||0,factor:+$('factor').value||1,hours:+$('hours').value||1720,cur:$('cur').value});
-const save=()=>{try{localStorage.setItem('mc',JSON.stringify(Object.fromEntries(fields.map(f=>[f,$(f).value]))))}catch(e){}};
+// save(...changed): fields changed in the page; a field still holding its URL value keeps its saved value (or is left out)
+const urlOnly=new Set(fields.filter(f=>P.has(f)));
+const save=(...changed)=>{changed.forEach(f=>urlOnly.delete(f));
+  try{localStorage.setItem('mc',JSON.stringify(Object.fromEntries(fields.map(f=>[f,urlOnly.has(f)?saved[f]:$(f).value]))))}catch(e){}};
 let fmt;const mkfmt=()=>{fmt=new Intl.NumberFormat('en-US',{style:'currency',currency:$('cur').value});$('ghost').textContent=fmt.format(9999.99)};
 mkfmt();
 
@@ -197,14 +201,16 @@ if(P.has('info'))info();
 // drag grip: moving away from the screen corner grows the overlay
 const grip=$('grip');let drag=null;
 grip.onclick=e=>e.stopPropagation(); // don't toggle the timer
-grip.ondblclick=()=>{$('scale').value=1;save()};
+grip.ondblclick=()=>{$('scale').value=1;save('scale')};
 grip.onpointerdown=e=>{e.stopPropagation();grip.setPointerCapture(e.pointerId);
   drag={x:e.clientX,y:e.clientY,s:+$('scale').value||1,w:$('pill').getBoundingClientRect().width,p:$('pos').value}};
 grip.onpointermove=e=>{if(!drag)return;
   const d=((e.clientX-drag.x)*(drag.p[1]==='r'?-1:1)+(e.clientY-drag.y)*(drag.p[0]==='b'?-1:1))/2;
   $('scale').value=Math.min(4,Math.max(.4,drag.s*(drag.w+d)/drag.w)).toFixed(2)};
-grip.onpointerup=grip.onpointercancel=()=>{if(drag){drag=null;save()}};
-fields.forEach(f=>$(f).addEventListener('input',()=>{save();if(f==='cur')mkfmt()}));
+grip.onpointerup=grip.onpointercancel=()=>{if(drag){drag=null;save('scale')}};
+fields.forEach(f=>$(f).addEventListener('input',()=>{save(f);if(f==='cur')mkfmt()}));
+// selects have no default attribute here, so their first option is the default
+$('defaults').onclick=()=>{fields.forEach(f=>{const e=$(f);if(e.tagName==='SELECT')e.selectedIndex=0;else e.value=e.defaultValue});mkfmt();save(...fields)};
 document.addEventListener('keydown',e=>{
   if((e.target.tagName==='INPUT'||e.target.tagName==='SELECT')&&e.key!=='Escape')return;
   if(e.code==='Space'||e.key===' '){e.preventDefault();toggle()} // OBS may leave e.code empty
@@ -212,8 +218,8 @@ document.addEventListener('keydown',e=>{
   else if(e.key==='h'||e.key==='H'||e.key==='Escape')document.body.classList.toggle('hidepanel');
   else if(e.key==='i'||e.key==='I')info();
   else if(e.key==='b'||e.key==='B')burnNow();
-  else if(e.key==='+'){$('n').value=+$('n').value+1;save()}
-  else if(e.key==='-'&&$('n').value>1){$('n').value=+$('n').value-1;save()}
+  else if(e.key==='+'){$('n').value=+$('n').value+1;save('n')}
+  else if(e.key==='-'&&$('n').value>1){$('n').value=+$('n').value-1;save('n')}
 });
 if(P.has('autostart'))toggle();
 tick();
