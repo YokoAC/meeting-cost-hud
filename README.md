@@ -1,6 +1,8 @@
 # Meeting Cost HUD
 
-Live meeting cost overlay for OBS Studio and Microsoft Teams, in a single HTML file. Works offline, no dependencies.
+[![licence: MIT](https://img.shields.io/badge/licence-MIT-blue)](LICENSE) [![demo: live](https://img.shields.io/badge/demo-live-brightgreen)](https://yokoac.github.io/meeting-cost-hud/meeting-cost.html) [![dependencies: none](https://img.shields.io/badge/dependencies-none-brightgreen)](meeting-cost.html) [![OBS Studio: 32.2](https://img.shields.io/badge/OBS_Studio-32.2-302E31?logo=obsstudio&logoColor=white)](obs/README.md) [![works with: Teams · Zoom · Meet](https://img.shields.io/badge/works_with-Teams_%C2%B7_Zoom_%C2%B7_Meet-6264A7)](obs/README.md#use-it-in-a-video-call)
+
+Live meeting cost overlay for OBS Studio and any video call app (Microsoft Teams, Zoom, Google Meet, …), in a single HTML file. Works offline, no dependencies.
 
 **[Try it in your browser](https://yokoac.github.io/meeting-cost-hud/meeting-cost.html)**, or download `meeting-cost.html` and open it locally.
 
@@ -22,9 +24,9 @@ Planned length: a thin bar under the cost fills up over **Planned length (min)**
 
 URL parameters (browser only; OBS's **Local file** ignores them) override saved settings for that visit only, so a bookmark like `?n=20` does not change your saved defaults: `n`, `salary`, `factor`, `hours`, `cur` (EUR, USD, GBP, CHF), `pos` (br, bl, tr, tl), `scale` (0.4–4), `burn` (0 = off), `plan` (minutes, 0 = off), plus flags `overlay` (transparent background), `autostart` and `info` (show calculation details). Example: `meeting-cost.html?n=8&salary=70000&pos=tr&autostart`
 
-## OBS + Microsoft Teams
+## OBS + video calls (Teams, Zoom, Meet, …)
 
-Put the HUD over your webcam in OBS Studio and send it to Microsoft Teams via OBS Virtual Camera. Step-by-step guide, a ready-made OBS scene and a test background: [obs/README.md](obs/README.md).
+Put the HUD over your webcam in OBS Studio and send it via OBS Virtual Camera to Microsoft Teams, Zoom, Google Meet or any other app that accepts a webcam. Step-by-step guide, a ready-made OBS scene and a test background: [obs/README.md](obs/README.md).
 
 ## Demo video
 

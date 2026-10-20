@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <circle cx="320" cy="170" r="110"/><path d="M60 520 C60 330 170 290 320 290 C470 290 580 330 580 520Z"/></g></svg></div>
     <div id="key"><span class="cap"></span><span class="what"></span></div>
     <div id="card"><h1>Meeting Cost <span>HUD</span></h1>
-      <p>Live meeting cost overlay for OBS Studio and Microsoft Teams</p></div>`);
+      <p>Live meeting cost overlay for OBS Studio and your video calls</p></div>`);
 });
 window.__key = (cap, what) => {
   const el = document.getElementById('key');
