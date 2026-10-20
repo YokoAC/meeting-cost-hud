@@ -4,7 +4,7 @@ Live meeting cost overlay for OBS Studio and Microsoft Teams, in a single HTML f
 
 ## Usage
 
-Open `meeting-cost.html` in a browser. Settings start hidden: hover the overlay and click ⚙ (or press H). Enter participants, average annual salary, employer cost factor and working hours per year, then press **Start** or click the overlay. Settings are saved automatically.
+Open `meeting-cost.html` in a browser. Settings start hidden: hover the overlay and click ⚙ (or press H). Enter participants, average annual salary, employer cost factor and working hours per year, then press **Start** or click the overlay. Settings are saved automatically and used next time; **Restore default settings** in the panel sets them back (the timer keeps running).
 
 Hotkeys: Space start/pause · R reset · `+`/`-` participants · I show/hide calculation details · B burn money · H or Esc show/hide panel. Click inside the page first so it receives key presses.
 
@@ -16,7 +16,7 @@ Burning money: press **Burn** in the panel (or B) to let banknotes fly across th
 
 Planned length: a thin bar under the cost fills up over **Planned length (min)** (default 30). It turns amber at 80%; when the meeting runs over, the bar and the elapsed time turn red and the full burn plays once ("Overtime: €272/h going up in flames"). Short reminders pop up at halfway ("Halfway · 15 min left") and, for meetings over 10 minutes, at "5 min left · time to wrap up". 0 turns all of this off.
 
-URL parameters (browser only; OBS's **Local file** ignores them) override saved settings: `n`, `salary`, `factor`, `hours`, `cur` (EUR, USD, GBP, CHF), `pos` (br, bl, tr, tl), `scale` (0.4–4), `burn` (0 = off), `plan` (minutes, 0 = off), plus flags `overlay` (transparent background), `autostart` and `info` (show calculation details). Example: `meeting-cost.html?n=8&salary=70000&pos=tr&autostart`
+URL parameters (browser only; OBS's **Local file** ignores them) override saved settings for that visit only, so a bookmark like `?n=20` does not change your saved defaults: `n`, `salary`, `factor`, `hours`, `cur` (EUR, USD, GBP, CHF), `pos` (br, bl, tr, tl), `scale` (0.4–4), `burn` (0 = off), `plan` (minutes, 0 = off), plus flags `overlay` (transparent background), `autostart` and `info` (show calculation details). Example: `meeting-cost.html?n=8&salary=70000&pos=tr&autostart`
 
 ## OBS + Microsoft Teams
 

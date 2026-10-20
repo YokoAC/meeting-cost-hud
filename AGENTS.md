@@ -15,6 +15,6 @@
 - Transparent background inside OBS (detected via `window.obsstudio`) or with `?overlay`. "Local file" passes no URL params, so OBS must work without them.
 - `#gear` and `#grip` are hover-only (on stream only while hovering in OBS Interact) and stop click propagation so they don't toggle the timer.
 - Space check uses `e.key===' '` too: OBS Interact may send an empty `e.code`. Hotkeys are ignored while an input or select has focus (except Esc).
-- Settings persist in `localStorage` key `mc`; every storage access is wrapped in try/catch. URL params (see README) override them.
+- Settings persist in `localStorage` key `mc`; every storage access is wrapped in try/catch. URL params (see README) override them for that visit only: `save(...changed)` keeps the saved value of a field that still holds its URL value. Pass the changed field names to `save()`.
 - Burn animations live in their own full-screen `#fx` layer (`pointer-events:none`), never inside `#pill`. A change of the burn threshold only moves the next mark; it must not fire a burst.
 - Status colours (green running, amber paused) belong to `#status`; planned-length colours (amber at 80%, red over) only go on `#bar` and `#time`. `#bar` always keeps its space (`visibility:hidden` when off). Milestones (halfway, 5 min left, overtime) fire once while running when time crosses them; like the burn threshold, changing the planned length never fires them. All small labels go through `pop()`, which queues them so they never overlap.
