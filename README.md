@@ -1,6 +1,6 @@
 # Meeting Cost HUD
 
-Live meeting cost timer in a single HTML file. Works offline, no dependencies.
+Live meeting cost overlay for OBS Studio and Microsoft Teams, in a single HTML file. Works offline, no dependencies.
 
 ## Usage
 
@@ -18,13 +18,9 @@ Planned length: a thin bar under the cost fills up over **Planned length (min)**
 
 URL parameters (browser only; OBS's **Local file** ignores them) override saved settings: `n`, `salary`, `factor`, `hours`, `cur` (EUR, USD, GBP, CHF), `pos` (br, bl, tr, tl), `scale` (0.4–4), `burn` (0 = off), `plan` (minutes, 0 = off), plus flags `overlay` (transparent background), `autostart` and `info` (show calculation details). Example: `meeting-cost.html?n=8&salary=70000&pos=tr&autostart`
 
-## OBS + Teams
+## OBS + Microsoft Teams
 
-1. In OBS, add your webcam as a **Video Capture Device**.
-2. Add a **Browser Source** above the webcam in the Sources list. Check **Local file** and select `meeting-cost.html`. Set width/height to your canvas size. The background is transparent automatically in OBS.
-3. Right-click the source → **Interact**. Click inside the page, press H to open the settings and enter your values. Click the cost display (or press Space) to start/pause. Key presses in the main OBS window do not reach the page.
-4. Click **Start Virtual Camera** in OBS.
-5. In Teams, choose **OBS Virtual Camera** as your camera.
+Put the HUD over your webcam in OBS Studio and send it to Microsoft Teams via OBS Virtual Camera. Step-by-step guide, a ready-made OBS scene and a test background: [obs/README.md](obs/README.md).
 
 ## License
 
