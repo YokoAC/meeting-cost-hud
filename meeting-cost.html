@@ -11,11 +11,15 @@
   html,body{margin:0;height:100%;background:transparent;font:500 15px/1.35 "Segoe UI",system-ui,sans-serif;color:var(--fg)}
   body.page{background:#0d0d10}
   #pill,#panel{background:var(--bg);border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.45)}
-  /* HUD and settings panel share one corner dock: panel stacks above the HUD in bottom corners, below it in top corners */
+  /* HUD and settings panel share one dock at a corner or edge centre: panel stacks above the HUD at the bottom, below it at the top.
+     A dragged HUD keeps its anchor and adds an offset (JS sets transform); centre anchors are shifted by `translate` */
   #dock{position:fixed;display:flex;flex-direction:column;align-items:flex-start;gap:10px;max-height:calc(100vh - 48px)}
   #dock.tl{top:24px;left:24px}#dock.tr{top:24px;right:24px}#dock.bl{bottom:24px;left:24px}#dock.br{bottom:24px;right:24px}
-  #dock.bl,#dock.br{flex-direction:column-reverse}#dock.tr,#dock.br{align-items:flex-end}
-  #pill{position:relative;flex:none;min-width:200px;padding:14px 16px;user-select:none;cursor:pointer}
+  #dock.tc{top:24px;left:50%;translate:-50% 0;align-items:center}#dock.bc{bottom:24px;left:50%;translate:-50% 0;align-items:center}
+  #dock.bl,#dock.br,#dock.bc{flex-direction:column-reverse}#dock.tr,#dock.br{align-items:flex-end}
+  /* #hud wraps the zoomed #pill unscaled: OBS's older Chromium (< 128) reports a zoomed element's rect unscaled, so all
+     measuring (drag, snap, grip, burn origin) uses #hud */
+  #hud{flex:none}#pill{position:relative;min-width:200px;padding:14px 16px;user-select:none;cursor:pointer;touch-action:none}
   .top{display:flex;justify-content:space-between;gap:16px;padding-bottom:6px;border-bottom:1px solid var(--rule)}
   #status{font-size:14px;white-space:nowrap;font-weight:700;letter-spacing:.04em;color:var(--grey)}
   #status.running{color:var(--green)}#status.paused{color:var(--amber)}
@@ -36,7 +40,13 @@
   #close:hover,#close:focus-visible{opacity:1}
   #panel label{display:flex;justify-content:space-between;align-items:center;margin:7px 0;font-size:14px;opacity:.85}
   #panel input,#panel select{box-sizing:border-box;width:130px;padding:3px 8px;border-radius:6px;border:1px solid var(--line);background:var(--field);color:var(--fg);font:inherit}
-  #panel select option{background:#16161a}
+  /* selects stay as the data source but are hidden: their pop-up list never opens in OBS Interact (off-screen browser) */
+  #panel select{display:none}
+  .seg{display:flex;width:130px;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+  .seg button{flex:1;min-width:0;padding:3px 0;border:0;border-radius:0;font-size:13px}.seg button+button{border-left:1px solid var(--line)}
+  .seg button.on{background:rgba(88,166,255,.22);color:var(--blue)}.seg .ico{font-size:17px;line-height:15px}
+  .seg.grid{display:grid;grid-template-columns:repeat(3,1fr)}.seg.grid button{border:0;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}.seg.grid button:nth-child(3n){border-right:0}.seg.grid button:nth-child(n+4){border-bottom:0}
+  #cur{text-transform:uppercase}#panel input.bad{border-color:var(--red)}
   #panel input:focus,#panel select:focus{outline:0;border-color:var(--blue)}
   .row{display:flex;gap:8px;margin-top:12px}
   button{flex:1;padding:5px 10px;border:1px solid var(--line);border-radius:6px;background:var(--field);color:var(--fg);font:inherit;font-size:14px;cursor:pointer}
@@ -54,9 +64,12 @@
   #gear{flex:none;margin-left:8px;padding:0 2px;border:0;background:none;color:var(--fg);font-size:15px;line-height:1;opacity:0;transition:opacity .2s}
   #pill:hover #gear{opacity:.6}#gear:hover,#gear:focus-visible{opacity:1!important}
   .br #grip{top:4px;left:4px;border-width:2px 0 0 2px;cursor:nwse-resize}.tl #grip{bottom:4px;right:4px;border-width:0 2px 2px 0;cursor:nwse-resize}
-  .bl #grip{top:4px;right:4px;border-width:2px 2px 0 0;cursor:nesw-resize}.tr #grip{bottom:4px;left:4px;border-width:0 0 2px 2px;cursor:nesw-resize}
+  .bl #grip,.bc #grip{top:4px;right:4px;border-width:2px 2px 0 0;cursor:nesw-resize}.tr #grip{bottom:4px;left:4px;border-width:0 0 2px 2px;cursor:nesw-resize}
+  .tc #grip{bottom:4px;right:4px;border-width:0 2px 2px 0;cursor:nwse-resize}
   /* burning money: own full-screen layer, so the HUD never changes size; bills are moved by the Web Animations API */
   #fx{position:fixed;inset:0;overflow:hidden;pointer-events:none}
+  /* snap guides, only while dragging the HUD: dashed outlines at the six spots, blue = it snaps here on release */
+  .snap{position:absolute;box-sizing:border-box;border:2px dashed var(--line);border-radius:10px}.snap.on{border-color:var(--blue)}
   .bill{position:absolute;left:-32px;top:-16px;box-sizing:border-box;display:grid;place-items:center;width:64px;height:32px;border:2px solid #2d5e37;border-radius:3px;
         background:linear-gradient(135deg,#a8dba8,#5ea86a 55%,#3c7d48);box-shadow:inset 0 0 0 3px #b9e2b6}
   .bill b{display:grid;place-items:center;width:24px;height:18px;border:1.5px solid #2d5e37;border-radius:50%;background:#d3eecf;color:#2d5e37;font:700 10px "Segoe UI",sans-serif}
@@ -73,14 +86,14 @@
 </head>
 <body>
 <div id="dock" class="br">
-<div id="pill" title="Running meeting cost, elapsed time, participant count and current cost per hour. Click to start/pause.">
+<div id="hud"><div id="pill" title="Running meeting cost, elapsed time, participant count and current cost per hour. Click to start/pause; drag to move it (it snaps to corners and edge centres).">
   <div class="top"><span id="status" title="Green dot = timer running, amber bars = paused, grey ring = not started"><i id="dot"></i><span class="lbl">MEETING COST</span></span><span><span id="time">00:00:00</span><button id="gear" title="Show or hide the settings panel (H)">&#9881;</button></span></div>
   <div id="cost"><span id="val">€0.00</span><span id="ghost"></span></div>
   <div class="sub"><span id="ppl">0</span> people · <span id="rate">0</span>/h</div>
   <div id="info"></div>
   <div id="bar" title="Progress through the planned meeting length: blue, amber from 80%, red when over time"><i></i></div>
   <div id="grip" title="Drag to resize the overlay. Double-click to reset to default size."></div>
-</div>
+</div></div>
 
 <div id="panel">
   <h1><span title="Live meeting cost overlay">Meeting Cost HUD</span><button id="close" title="Hide this settings panel so only the overlay is visible. Press H or Esc, or click the gear on the overlay, to show it again.">&times;</button></h1>
@@ -88,8 +101,9 @@
   <label title="Average gross annual salary per participant, in the selected currency.">Avg. annual salary <input title="Average gross annual salary per participant, in the selected currency." id="salary" type="number" min="0" step="1000" value="65000"></label>
   <label title="Multiplier for employer costs on top of salary (social contributions, benefits, office). 1.0 = salary only; 1.2–1.3 is typical.">Employer cost factor <input title="Multiplier for employer costs on top of salary (social contributions, benefits, office). 1.0 = salary only; 1.2–1.3 is typical." id="factor" type="number" min="1" step="0.05" value="1.2"></label>
   <label title="Productive working hours per person per year, used to convert annual salary to an hourly rate. ~1720 for a 40h week minus holidays and vacation.">Working hours / year <input title="Productive working hours per person per year, used to convert annual salary to an hourly rate. ~1720 for a 40h week minus holidays and vacation." id="hours" type="number" min="1" value="1720"></label>
-  <label title="Currency used to display the cost.">Currency <select title="Currency used to display the cost." id="cur"><option>EUR</option><option>USD</option><option>GBP</option><option>CHF</option></select></label>
-  <label title="Corner of the screen where the cost overlay is shown.">Position <select title="Corner of the screen where the cost overlay is shown." id="pos"><option value="br">Bottom right</option><option value="bl">Bottom left</option><option value="tr">Top right</option><option value="tl">Top left</option></select></label>
+  <label title="Currency as a 3-letter ISO code, e.g. EUR, USD, GBP, CHF, JPY, CNY. An unknown code is marked red and the last valid one stays in use.">Currency <input title="Currency as a 3-letter ISO code, e.g. EUR, USD, GBP, CHF, JPY, CNY. An unknown code is marked red and the last valid one stays in use." id="cur" maxlength="3" value="EUR" autocomplete="off" spellcheck="false"></label>
+  <label title="Where the cost overlay sits: a corner or the top/bottom centre. You can also drag the overlay anywhere; near one of these spots it snaps in.">Position <select title="Where the cost overlay sits: a corner or the top/bottom centre. You can also drag the overlay anywhere; near one of these spots it snaps in." id="pos"><option value="tl" data-short="↖">Top left</option><option value="tc" data-short="↑">Top centre</option><option value="tr" data-short="↗">Top right</option><option value="bl" data-short="↙">Bottom left</option><option value="bc" data-short="↓">Bottom centre</option><option value="br" data-short="↘" selected>Bottom right</option></select></label>
+  <input id="off" value="" hidden><!-- not type=hidden: there .value also overwrites the default, so Restore defaults kept the drag offset -->
   <label title="Overlay size multiplier. 1 = default; you can also drag the corner grip on the overlay (double-click it to reset).">Overlay size <input title="Overlay size multiplier. 1 = default; you can also drag the corner grip on the overlay (double-click it to reset)." id="scale" type="number" min="0.4" max="4" step="0.1" value="1"></label>
   <label title="A small burning-money animation plays each time the cost passes a multiple of this amount. Leave empty for auto (about every 10 minutes at the current cost per hour); 0 = off.">Burn every <input title="A small burning-money animation plays each time the cost passes a multiple of this amount. Leave empty for auto (about every 10 minutes at the current cost per hour); 0 = off." id="burn" type="number" min="0" placeholder="auto"></label>
   <label title="Planned meeting length in minutes. The bar under the cost fills up, turns amber at 80% and red when over time; going over plays the burn animation once (in Quiet display a red label instead). 0 = off.">Planned length (min) <input title="Planned meeting length in minutes. The bar under the cost fills up, turns amber at 80% and red when over time; going over plays the burn animation once (in Quiet display a red label instead). 0 = off." id="plan" type="number" min="0" step="5" value="30"></label>
@@ -103,22 +117,27 @@
 
 <script>
 const $=id=>document.getElementById(id);
+const box=()=>$('hud').getBoundingClientRect(); // the HUD's real on-screen rect at any overlay size
 const P=new URLSearchParams(location.search);
-const fields=['n','salary','factor','hours','cur','pos','scale','burn','plan','view'];
+const fields=['n','salary','factor','hours','cur','pos','off','scale','burn','plan','view']; // off = drag offset "x,y" in % of the screen, '' = none
 // URL params override saved values for this visit only (browser only: OBS "Local file" passes none)
 let saved={};try{saved=JSON.parse(localStorage.getItem('mc')||'{}')}catch(e){}
-// an unknown select value (e.g. cur=XYZ) leaves selectedIndex -1; fall back to the first option instead of crashing Intl
-fields.forEach(f=>{const v=P.get(f)??saved[f];if(v!=null){$(f).value=v;if($(f).selectedIndex<0)$(f).selectedIndex=0}});
+// a select's default is its option marked selected (else the first); an unknown value (e.g. pos=xx) falls back to it
+const def=e=>(e.querySelector('option[selected]')||e.options[0]).value;
+fields.forEach(f=>{const v=P.get(f)??saved[f];if(v!=null){$(f).value=v;if($(f).selectedIndex<0)$(f).value=def($(f))}});
 document.body.classList.add('hidepanel'); // panel starts hidden: open with the gear, H or Esc
 if(!P.has('overlay')&&!window.obsstudio)document.body.classList.add('page'); // OBS's browser always gets the transparent background: "Local file" passes no URL params
 
 let running=false,acc=0,t0=0; // acc = elapsed ms before current run
-const cfg=()=>({n:+$('n').value||0,salary:+$('salary').value||0,factor:+$('factor').value||1,hours:+$('hours').value||1720,cur:$('cur').value});
+const cfg=()=>({n:+$('n').value||0,salary:+$('salary').value||0,factor:+$('factor').value||1,hours:+$('hours').value||1720,cur});
 // save(...changed): fields changed in the page; a field still holding its URL value keeps its saved value (or is left out)
 const urlOnly=new Set(fields.filter(f=>P.has(f)));
 const save=(...changed)=>{changed.forEach(f=>urlOnly.delete(f));
   try{localStorage.setItem('mc',JSON.stringify(Object.fromEntries(fields.map(f=>[f,urlOnly.has(f)?saved[f]:$(f).value]))))}catch(e){}};
-let fmt;const mkfmt=()=>{fmt=new Intl.NumberFormat('en-US',{style:'currency',currency:$('cur').value});$('ghost').textContent=fmt.format(9999.99)};
+// currency: any ISO code the browser knows; an unknown one is marked red and the last valid one stays in use. Returns validity.
+const known=Intl.supportedValuesOf?.('currency');
+let fmt,cur='EUR';const mkfmt=()=>{const v=$('cur').value.trim().toUpperCase(),ok=known?known.includes(v):/^[A-Z]{3}$/.test(v);
+  $('cur').classList.toggle('bad',!ok);if(ok){cur=v;fmt=new Intl.NumberFormat('en-US',{style:'currency',currency:v})}return ok};
 mkfmt();
 
 // cost integrates over time so participant changes mid-meeting are handled correctly
@@ -131,12 +150,18 @@ function tick(){
   const el=acc+(running?now-t0:0),s=Math.floor(el/1000);
   $('time').textContent=[s/3600,s/60%60,s%60].map(x=>String(Math.floor(x)).padStart(2,'0')).join(':');
   $('val').textContent=fmt.format(costAcc);
+  // reserve width for ~2 h at the current rate (at least 9,999.99), so the HUD keeps its width in any currency
+  const g=fmt.format(Math.max(1e4,10**Math.ceil(Math.log10(perSec*7200)))-10**-fmt.resolvedOptions().maximumFractionDigits);
+  if($('ghost').textContent!==g)$('ghost').textContent=g;
   $('ppl').textContent=c.n;
   const f0=new Intl.NumberFormat('en-US',{style:'currency',currency:c.cur,maximumFractionDigits:0});
   $('rate').textContent=f0.format(perSec*3600);
   $('status').className=running?'running':costAcc>0?'paused':'';
   $('info').innerHTML=`${f0.format(c.salary)}/yr × ${c.factor.toFixed(2)} ÷ ${c.hours} h/yr<br>= ${f0.format(c.salary*c.factor/c.hours)}/h per person`;
-  $('dock').className=$('pos').value;
+  place();
+  // a dragged (offset) HUD highlights no position button
+  document.querySelectorAll('.seg').forEach(g=>{const sel=g.previousElementSibling;
+    [...g.children].forEach((b,i)=>b.classList.toggle('on',sel.selectedIndex===i&&!(sel.id==='pos'&&$('off').value)))});
   const quiet=$('view').value==='quiet';document.body.classList.toggle('quiet',quiet);
   $('pill').style.zoom=Math.min(4,Math.max(.4,+$('scale').value||1));
   // planned length: bar + red time; while running, crossing halfway / 5 min left (plans over 10 min) / overtime pops once (quiet: a label, no burn)
@@ -161,12 +186,13 @@ let mark=0,markT=-1; // next cost at which the small burn fires, and the thresho
 const nice=x=>{const p=10**Math.floor(Math.log10(x)),m=x/p;return(m<1.5?1:m<3.5?2:m<7.5?5:10)*p}; // round to 1/2/5 × 10^k
 // big = full burn across the screen (button / B), else a small burst near the HUD plus a rising label
 function burn(big,label){
-  const r=$('pill').getBoundingClientRect(),z=+$('pill').style.zoom||1,p=$('pos').value,sx=p[1]==='r'?-1:1,sy=p[0]==='b'?-1:1,
+  const r=box(),z=+$('pill').style.zoom||1,p=$('pos').value,sy=p[0]==='b'?-1:1,
     ox=r.left+r.width/2,oy=r.top+r.height/2,sym=fmt.formatToParts(0).find(t=>t.type==='currency').value,
     T=(x,y,s,a)=>`translate(${x}px,${y}px) rotate(${a}deg) scale(${s*z})`,
     fire='sepia(1) saturate(5) hue-rotate(-25deg) brightness(1.15)',char='grayscale(1) brightness(.3)';
   for(let i=0;i<(big?22:5);i++){
     const b=document.createElement('div');b.className='bill';b.innerHTML=`<b>${sym}</b>`;$('fx').append(b);
+    const sx=p[1]==='r'?-1:p[1]==='l'?1:Math.random()<.5?-1:1; // centre anchors: either side
     const tx=big?Math.random()*innerWidth:ox+sx*(40+Math.random()*220)*z,ty=big?Math.random()*innerHeight:oy+sy*(30+Math.random()*150)*z,
       mx=(ox+tx)/2,my=Math.min(oy,ty)-80*z,a=Math.random()*720-360,
       o={duration:big?3000+Math.random()*800:1400+Math.random()*300,delay:Math.random()*(big?600:150),easing:'ease-out',fill:'backwards'};
@@ -187,16 +213,19 @@ function pop(label,big,cls='',ms=big?3500:1800){
   const now=performance.now(),wait=big?0:Math.max(0,popFree-now);
   if(!big)popFree=now+wait+ms;
   setTimeout(()=>{
-    const r=$('pill').getBoundingClientRect(),z=+$('pill').style.zoom||1,sy=$('pos').value[0]==='b'?-1:1,t=document.createElement('div');
+    const r=box(),z=+$('pill').style.zoom||1,sy=$('pos').value[0]==='b'?-1:1,t=document.createElement('div');
     t.className='tag '+cls;t.textContent=label;$('fx').append(t);
     const [lx,ly,ls,dy]=big?[innerWidth/2,innerHeight/2,Math.min(2.5*z,innerWidth*.9/t.offsetWidth),-40]:[r.left+r.width/2,(sy<0?r.top:r.bottom)+sy*16*z,z,sy*90],
       L=d=>`translate(${lx}px,${ly+d*z}px) translate(-50%,-50%) scale(${ls})`;
     t.animate([{transform:L(0),opacity:0},{opacity:1,offset:.15},{opacity:1,offset:.7},{transform:L(dy),opacity:0}],{duration:ms,easing:'ease-out'}).onfinish=()=>t.remove();
   },wait);
 }
+// dock = anchor class + drag offset; max height shrinks by the offset so the panel stays on screen
+function place(){const [ox,oy]=$('off').value?$('off').value.split(',').map(Number):[0,0],d=$('dock');
+  d.className=$('pos').value;d.style.transform=`translate(${ox}vw,${oy}vh)`;d.style.maxHeight=`calc(100vh - 48px - ${Math.abs(oy)}vh)`}
 function toggle(){if(running){acc+=performance.now()-t0}else{t0=performance.now()}running=!running;$('start').textContent=running?'Pause':'Start'}
 function reset(){running=false;acc=0;costAcc=0;markT=-1;stage=0;$('start').textContent='Start'}
-$('start').onclick=toggle;$('reset').onclick=reset;$('pill').onclick=toggle;
+$('start').onclick=toggle;$('reset').onclick=reset;$('pill').onclick=()=>{if(dragged)dragged=false;else toggle()};
 $('close').onclick=()=>document.body.classList.add('hidepanel');
 $('gear').onclick=e=>{e.stopPropagation();document.body.classList.toggle('hidepanel')}; // don't toggle the timer
 const info=()=>document.body.classList.toggle('showinfo');
@@ -204,19 +233,43 @@ $('info-btn').onclick=info;
 const burnNow=(pre='')=>{const c=cfg();burn(true,pre+new Intl.NumberFormat('en-US',{style:'currency',currency:c.cur,maximumFractionDigits:0}).format(c.n*c.salary*c.factor/c.hours)+'/h going up in flames')};
 $('burn-btn').onclick=()=>burnNow();
 if(P.has('info'))info();
+// each select gets a row of buttons; a click sets the select and fires its normal input handler (save, currency format)
+document.querySelectorAll('#panel select').forEach(sel=>{
+  const seg=document.createElement('span');seg.className=sel.id==='pos'?'seg grid':'seg';
+  for(const o of sel.options){const b=document.createElement('button');b.textContent=o.dataset.short||o.text;if(o.dataset.short)b.className='ico';b.title=`${o.text}. ${sel.title}`;
+    b.onclick=()=>{sel.value=o.value;if(sel.id==='pos')$('off').value='';sel.dispatchEvent(new Event('input'))};seg.append(b)}
+  sel.after(seg)});
 // drag grip: moving away from the screen corner grows the overlay
 const grip=$('grip');let drag=null;
 grip.onclick=e=>e.stopPropagation(); // don't toggle the timer
 grip.ondblclick=()=>{$('scale').value=1;save('scale')};
 grip.onpointerdown=e=>{e.stopPropagation();grip.setPointerCapture(e.pointerId);
-  drag={x:e.clientX,y:e.clientY,s:+$('scale').value||1,w:$('pill').getBoundingClientRect().width,p:$('pos').value}};
+  drag={x:e.clientX,y:e.clientY,s:+$('scale').value||1,w:box().width,p:$('pos').value}};
 grip.onpointermove=e=>{if(!drag)return;
   const d=((e.clientX-drag.x)*(drag.p[1]==='r'?-1:1)+(e.clientY-drag.y)*(drag.p[0]==='b'?-1:1))/2;
   $('scale').value=Math.min(4,Math.max(.4,drag.s*(drag.w+d)/drag.w)).toFixed(2)};
 grip.onpointerup=grip.onpointercancel=()=>{if(drag){drag=null;save('scale')}};
-fields.forEach(f=>$(f).addEventListener('input',()=>{save(f);if(f==='cur')mkfmt()}));
-// selects have no default attribute here, so their first option is the default
-$('defaults').onclick=()=>{fields.forEach(f=>{const e=$(f);if(e.tagName==='SELECT')e.selectedIndex=0;else e.value=e.defaultValue});mkfmt();save(...fields)};
+// move the HUD: a short click still starts/pauses, more than 5 px of movement drags it. On release it takes the nearest anchor
+// (left/centre/right third, top/bottom half) plus an offset in % of the screen, or snaps onto the anchor within the snap distance
+const pill=$('pill');let mv=null,dragged=false;
+// HUD-sized outlines centred where the HUD sits at each anchor (24 px margin, no offset)
+const guides=()=>{const r=box(),w=r.width,h=r.height;mv.snap=Math.max(60,h/2); // snap distance grows with the overlay size
+  return ['tl','tc','tr','bl','bc','br'].map(a=>{const g=document.createElement('div');g.className='snap';
+    g.x=a[1]==='l'?24+w/2:a[1]==='r'?innerWidth-24-w/2:innerWidth/2;g.y=a[0]==='t'?24+h/2:innerHeight-24-h/2;
+    Object.assign(g.style,{left:g.x-w/2+'px',top:g.y-h/2+'px',width:w+'px',height:h+'px'});$('fx').append(g);return g})};
+pill.onpointerdown=e=>{if(e.button||e.target.closest('#gear'))return;
+  const [ox,oy]=$('off').value?$('off').value.split(',').map(Number):[0,0];mv={x:e.clientX,y:e.clientY,ox,oy,moved:false}};
+pill.onpointermove=e=>{if(!mv)return;const dx=e.clientX-mv.x,dy=e.clientY-mv.y;
+  if(!mv.moved){if(Math.hypot(dx,dy)<5)return;mv.moved=true;pill.setPointerCapture(e.pointerId);mv.g=guides()}
+  $('off').value=`${(mv.ox+dx/innerWidth*100).toFixed(2)},${(mv.oy+dy/innerHeight*100).toFixed(2)}`;place();
+  const r=box(),cx=r.left+r.width/2,cy=r.top+r.height/2;mv.g.forEach(g=>g.classList.toggle('on',Math.hypot(cx-g.x,cy-g.y)<mv.snap))};
+pill.onpointerup=pill.onpointercancel=()=>{if(!mv)return;const {moved,g,snap}=mv;mv=null;g?.forEach(x=>x.remove());if(!moved)return;dragged=true;
+  const r=box(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+  $('pos').value=(cy<innerHeight/2?'t':'b')+(cx<innerWidth/3?'l':cx>innerWidth*2/3?'r':'c');$('off').value='';place();
+  const q=box(),dx=cx-(q.left+q.width/2),dy=cy-(q.top+q.height/2);
+  $('off').value=Math.hypot(dx,dy)<snap?'':`${(dx/innerWidth*100).toFixed(2)},${(dy/innerHeight*100).toFixed(2)}`;place();save('pos','off')};
+fields.forEach(f=>$(f).addEventListener('input',()=>{if(f==='cur'&&!mkfmt())return;save(f,...(f==='pos'?['off']:[]))}));
+$('defaults').onclick=()=>{fields.forEach(f=>{const e=$(f);e.value=e.tagName==='SELECT'?def(e):e.defaultValue});mkfmt();save(...fields)};
 document.addEventListener('keydown',e=>{
   if((e.target.tagName==='INPUT'||e.target.tagName==='SELECT')&&e.key!=='Escape')return;
   if(e.code==='Space'||e.key===' '){e.preventDefault();toggle()} // OBS may leave e.code empty

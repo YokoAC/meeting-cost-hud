@@ -10,11 +10,11 @@ https://github.com/user-attachments/assets/67162dea-2a2d-47f1-9353-294b8b056454
 
 ## Usage
 
-Open `meeting-cost.html` in a browser. Settings start hidden: hover the overlay and click ⚙ (or press H). Enter participants, average annual salary, employer cost factor and working hours per year, then press **Start** or click the overlay. Settings are saved automatically and used next time; **Restore default settings** in the panel sets them back (the timer keeps running).
+Open `meeting-cost.html` in a browser. Settings start hidden: hover the overlay and click ⚙ (or press H). Enter participants, average annual salary, employer cost factor and working hours per year, then press **Start** or click the overlay. **Currency** takes any 3-letter ISO code (EUR, USD, GBP, CHF, JPY, CNY, …); an unknown code is marked red and ignored. Settings are saved automatically and used next time; **Restore default settings** in the panel sets them back (the timer keeps running).
 
 Hotkeys: Space start/pause · R reset · `+`/`-` participants · I show/hide calculation details · B burn money · Q quiet / full display · H or Esc show/hide panel. Click inside the page first so it receives key presses.
 
-Mouse: click the overlay to start/pause; hover it to reveal the ⚙ (settings panel) and the corner grip.
+Mouse: click the overlay to start/pause; hover it to reveal the ⚙ (settings panel) and the corner grip. Drag the overlay to move it anywhere; while dragging, dashed outlines show the six snap spots (corners and top/bottom centre) and turn blue when it will snap in (the snap distance grows with **Overlay size**). **Position** in the panel has the same six spots as buttons.
 
 Resize: hover the overlay and drag the corner grip, or set **Overlay size** in the panel. Double-click the grip to reset.
 
@@ -24,7 +24,7 @@ Planned length: a thin bar under the cost fills up over **Planned length (min)**
 
 Quiet display: press Q (or set **Display** to Quiet) when a running cost would put too much pressure on the meeting. The HUD shrinks to the status dot, the elapsed time and the planned-length bar; the cost keeps counting and appears again when you switch back. Money animations (threshold bursts, the overtime burn) pause; the halfway and 5-min reminders stay, and overtime shows a red label instead of the burn. B still burns on purpose.
 
-URL parameters (browser only; OBS's **Local file** ignores them) override saved settings for that visit only, so a bookmark like `?n=20` does not change your saved defaults: `n`, `salary`, `factor`, `hours`, `cur` (EUR, USD, GBP, CHF), `pos` (br, bl, tr, tl), `scale` (0.4–4), `burn` (0 = off), `plan` (minutes, 0 = off), `view` (full, quiet), plus flags `overlay` (transparent background), `autostart` and `info` (show calculation details). Example: `meeting-cost.html?n=8&salary=70000&pos=tr&autostart`
+URL parameters (browser only; OBS's **Local file** ignores them) override saved settings for that visit only, so a bookmark like `?n=20` does not change your saved defaults: `n`, `salary`, `factor`, `hours`, `cur` (ISO code, e.g. EUR, USD, JPY), `pos` (tl, tc, tr, bl, bc, br), `scale` (0.4–4), `burn` (0 = off), `plan` (minutes, 0 = off), `view` (full, quiet), plus flags `overlay` (transparent background), `autostart` and `info` (show calculation details). Example: `meeting-cost.html?n=8&salary=70000&pos=tr&autostart`
 
 ## OBS + video calls (Teams, Zoom, Meet, …)
 
