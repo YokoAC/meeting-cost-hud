@@ -13,3 +13,11 @@ uv run --no-project --with playwright --with imageio-ffmpeg demo/record.py
 ```
 
 To publish a new recording: drag `demo/out/demo.mp4` into a pull request comment or description on GitHub, copy the `https://github.com/user-attachments/assets/…` link it inserts, and replace the video link in the main `README.md`. The MP4 itself is not committed.
+
+## Controls picture
+
+`screenshot.py` renders `docs/controls.png` for the README's Controls section from the real page (the HUD mid-meeting plus the panel's hotkey list, transparent background). Re-run it after changing hotkeys or the HUD's look; unlike the video, the PNG is committed.
+
+```bash
+uv run --no-project --with playwright demo/screenshot.py
+```
