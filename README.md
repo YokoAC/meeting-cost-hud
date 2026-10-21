@@ -6,7 +6,7 @@ Live meeting cost overlay for OBS Studio and any video call app (Microsoft Teams
 
 **[Try it in your browser](https://yokoac.github.io/meeting-cost-hud/meeting-cost.html)**, or download `meeting-cost.html` and open it locally.
 
-https://github.com/user-attachments/assets/67162dea-2a2d-47f1-9353-294b8b056454
+https://github.com/user-attachments/assets/ec491d59-ad0f-43cb-82b9-ab0474f5bd8c
 
 ## Usage
 
@@ -29,18 +29,6 @@ URL parameters (browser only; OBS's **Local file** ignores them) override saved 
 ## OBS + video calls (Teams, Zoom, Meet, …)
 
 Put the HUD over your webcam in OBS Studio and send it via OBS Virtual Camera to Microsoft Teams, Zoom, Google Meet or any other app that accepts a webcam. Step-by-step guide, a ready-made OBS scene and a test background: [obs/README.md](obs/README.md).
-
-## Demo video
-
-`demo/record.py` re-records the demo video into `demo/out/demo.mp4` (gitignored): the real page in Chromium over a stand-in webcam, with meeting time fast-forwarded. It needs [uv](https://docs.astral.sh/uv/), which fetches Playwright and a temporary ffmpeg; nothing is installed into the repository.
-
-```bash
-uv run --no-project --with playwright playwright install chromium
-```
-
-```bash
-uv run --no-project --with playwright --with imageio-ffmpeg demo/record.py
-```
 
 ## License
 

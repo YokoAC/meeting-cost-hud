@@ -1,9 +1,10 @@
-"""Records the README demo video: demo/out/demo.mp4.
+"""Records the README demo video: demo/out/demo.mp4 (see demo/README.md).
 
 Runs the real meeting-cost.html in Chromium over a stand-in webcam picture and
-fast-forwards meeting time, so halfway, a burn threshold, "5 min left", a manual
-burn and overtime all fit into about 30 seconds. Nothing is installed into the
-repository; uv fetches Playwright and a temporary ffmpeg:
+fast-forwards meeting time, so dragging, burn thresholds, halfway, "5 min left",
+quiet display, a manual burn and overtime all fit into about 45 seconds.
+Nothing is installed into the repository; uv fetches Playwright and a temporary
+ffmpeg:
 
     uv run --no-project --with playwright playwright install chromium   # once
     uv run --no-project --with playwright --with imageio-ffmpeg demo/record.py
@@ -44,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
     #card { position: fixed; inset: 0; z-index: 9; background: #0d0d10; color: #f2f2f2; display: flex;
             flex-direction: column; align-items: center; justify-content: center; gap: 14px;
             text-align: center; transition: opacity .35s; }
-    #card.gone { opacity: 0; }
+    #card.gone { opacity: 0; pointer-events: none; }  /* else the faded card swallows the mouse drag */
     #card h1 { font: 800 52px "Segoe UI", system-ui; margin: 0; }
     #card h1 span { color: #e3b341; }
     #card p { font: 22px "Segoe UI", system-ui; color: #aab; margin: 0; max-width: 900px; }
@@ -117,6 +118,19 @@ def main():
         def at(seconds):
             time.sleep(seconds)
 
+        def drag_top_right():  # real mouse drag in small steps, so the snap guides show; released a bit off the spot
+            page.evaluate("([c, w]) => window.__key(c, w)", ["Drag", "move the overlay"])
+            x, y, w, h = page.evaluate("(() => { const r = box(); return [r.left + r.width / 2, r.top + r.height / 2, r.width, r.height] })()")
+            tx, ty = W - 24 - w / 2 - 30, 24 + h / 2 + 20
+            page.mouse.move(x, y)
+            page.mouse.down()
+            for i in range(1, 41):
+                page.mouse.move(x + (tx - x) * i / 40, y + (ty - y) * i / 40)
+                time.sleep(0.03)
+            time.sleep(0.5)
+            page.mouse.up()
+            page.mouse.move(W / 2, H / 2)  # leave the HUD, so its hover-only gear and grip disappear again
+
         at(1.6)
         page.evaluate("window.__card(null)")
         at(0.8)
@@ -124,6 +138,8 @@ def main():
         at(1.8)
         key("H", "hide settings", "h")
         at(0.8)
+        drag_top_right()          # snap guides, snaps into the top-right spot
+        at(1.6)
         key("Space", "start the meeting", "Space")
         at(2.2)
         ff("05:30", 2.5)          # cost climbing; €40 burst at ~05:18
@@ -134,6 +150,10 @@ def main():
         at(2.0)
         key("+", "more people join", "+", times=3, gap=0.35)
         at(1.6)
+        key("Q", "quiet display", "q")   # cost hidden, keeps counting
+        at(2.6)
+        key("Q", "full display again", "q")
+        at(1.4)
         key("B", "burn money", "b")
         at(4.0)
         ff("10:00", 1.5)          # €80 burst at ~09:45
