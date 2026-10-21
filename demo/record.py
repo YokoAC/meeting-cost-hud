@@ -1,8 +1,9 @@
 """Records the README demo video: demo/out/demo.mp4 (see demo/README.md).
 
 Runs the real meeting-cost.html in Chromium over a stand-in webcam picture and
-fast-forwards meeting time, so dragging, burn thresholds, halfway, "5 min left",
-quiet display, a manual burn and overtime all fit into about 45 seconds.
+fast-forwards meeting time, so dragging, waiting for the host with the planned
+cost, burn thresholds, halfway, "5 min left", quiet display, a manual burn and
+overtime all fit into about 50 seconds.
 Nothing is installed into the repository; uv fetches Playwright and a temporary
 ffmpeg:
 
@@ -49,12 +50,18 @@ document.addEventListener('DOMContentLoaded', () => {
     #card h1 { font: 800 52px "Segoe UI", system-ui; margin: 0; }
     #card h1 span { color: #e3b341; }
     #card p { font: 22px "Segoe UI", system-ui; color: #aab; margin: 0; max-width: 900px; }
-    #card .url { font: 600 20px Consolas, monospace; color: #58a6ff; }`;
+    #card .url { font: 600 20px Consolas, monospace; color: #58a6ff; }
+    #hl { position: fixed; z-index: 8; border: 2px solid #e3b341; border-radius: 6px; box-shadow: 0 0 12px #e3b34188;
+          pointer-events: none; opacity: 0; transition: opacity .25s; }
+    #tip { position: fixed; z-index: 8; width: 290px; padding: 10px 14px; border-radius: 10px; border: 1px solid #e3b341;
+           background: #000d; color: #fff; font: 600 16px/1.35 system-ui; pointer-events: none; opacity: 0; transition: opacity .25s; }
+    #hl.on, #tip.on { opacity: 1; }`;
   document.head.append(css);
   document.body.insertAdjacentHTML('afterbegin', `
     <div id="cam"><svg viewBox="0 0 640 520"><g fill="#1b2128">
       <circle cx="320" cy="170" r="110"/><path d="M60 520 C60 330 170 290 320 290 C470 290 580 330 580 520Z"/></g></svg></div>
     <div id="key"><span class="cap"></span><span class="what"></span></div>
+    <div id="hl"></div><div id="tip"></div>
     <div id="card"><h1>Meeting Cost <span>HUD</span></h1>
       <p>Live meeting cost overlay for OBS Studio and your video calls</p></div>`);
 });
@@ -65,6 +72,17 @@ window.__key = (cap, what) => {
   el.classList.add('on');
   clearTimeout(window.__kt);
   window.__kt = setTimeout(() => el.classList.remove('on'), 1500);
+};
+// callout: amber frame around an element plus an explanation to the left of the settings panel; null hides it
+window.__callout = (sel, text) => {
+  const hl = document.getElementById('hl'), tip = document.getElementById('tip');
+  if (!sel) { hl.classList.remove('on'); tip.classList.remove('on'); return; }
+  const rg = document.createRange(); rg.selectNodeContents(document.querySelector(sel));  // the text itself, not the full-width line
+  const r = rg.getBoundingClientRect(), p = document.getElementById('panel').getBoundingClientRect();
+  Object.assign(hl.style, { left: r.left - 6 + 'px', top: r.top - 4 + 'px', width: r.width + 12 + 'px', height: r.height + 8 + 'px' });
+  tip.textContent = text;
+  Object.assign(tip.style, { left: p.left - 310 + 'px', top: r.top + r.height / 2 - 30 + 'px' });
+  hl.classList.add('on'); tip.classList.add('on');
 };
 window.__card = html => {
   const c = document.getElementById('card');
@@ -86,7 +104,7 @@ FF = """([target, ms]) => new Promise(done => {
 })"""
 
 END_CARD = """<h1>Meeting Cost <span>HUD</span></h1>
-  <p>Single HTML file · works offline · burn animations · planned length and reminders</p>
+  <p>Single HTML file · works offline · burn animations · reminders · waiting counter</p>
   <div class="url">github.com/YokoAC/meeting-cost-hud</div>"""
 
 
@@ -94,8 +112,8 @@ def main():
     shutil.rmtree(OUT, ignore_errors=True)
     OUT.mkdir(parents=True)
     with sync_playwright() as p:
-        browser = p.chromium.launch()
-        context = browser.new_context(viewport={"width": W, "height": H},
+        browser = p.chromium.launch(args=["--lang=en-US"])  # number fields follow the browser UI language, not the page locale
+        context = browser.new_context(viewport={"width": W, "height": H}, locale="en-US",
                                       record_video_dir=str(OUT), record_video_size={"width": W, "height": H})
         page = context.new_page()
         page.add_init_script(STAGE)
@@ -135,13 +153,22 @@ def main():
         page.evaluate("window.__card(null)")
         at(0.8)
         key("H", "settings", "h")
-        at(1.8)
+        at(0.6)                   # panel faded in, so the note can be measured
+        page.evaluate("([s, t]) => window.__callout(s, t)",
+                      ["#planned", "Planned length × cost per hour: what this meeting costs if it ends on time"])
+        at(3.4)
+        page.evaluate("window.__callout(null)")
+        at(0.3)
         key("H", "hide settings", "h")
         at(0.8)
         drag_top_right()          # snap guides, snaps into the top-right spot
         at(1.6)
-        key("Space", "start the meeting", "Space")
-        at(2.2)
+        key("W", "waiting for the host", "w")   # starts the timer: WAITING + "12 min planned ≈ €91"
+        at(2.0)
+        ff("01:30", 1.5)
+        at(1.0)
+        key("W", "everyone's here", "w")         # small burst: "Waited 1:30 · €11.33 burned"
+        at(2.6)
         ff("05:30", 2.5)          # cost climbing; €40 burst at ~05:18
         at(2.0)
         ff("06:00", 0.6)          # halfway reminder (4 s on screen)

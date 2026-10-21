@@ -6,17 +6,39 @@ Live meeting cost overlay for OBS Studio and any video call app (Microsoft Teams
 
 **[Try it in your browser](https://yokoac.github.io/meeting-cost-hud/meeting-cost.html)**, or download `meeting-cost.html` and open it locally.
 
-https://github.com/user-attachments/assets/ec491d59-ad0f-43cb-82b9-ab0474f5bd8c
+https://github.com/user-attachments/assets/7bd40153-cdde-4dff-8d37-59a794ad0aa6
 
 ## Usage
 
 Open `meeting-cost.html` in a browser. Settings start hidden: hover the overlay and click ⚙ (or press H). Enter participants, average annual salary, employer cost factor and working hours per year, then press **Start** or click the overlay. **Currency** takes any 3-letter ISO code (EUR, USD, GBP, CHF, JPY, CNY, …); an unknown code is marked red and ignored. Settings are saved automatically and used next time; **Restore defaults** in the panel sets them back (the timer keeps running).
 
-Hotkeys: Space start/pause · R reset · `+`/`-` participants · I show/hide calculation details · B burn money · Q quiet / full display · W waiting for someone / all here · H or Esc show/hide panel. Click inside the page first so it receives key presses.
+## Controls
 
-Mouse: click the overlay to start/pause; hover it to reveal the ⚙ (settings panel) and the corner grip. Drag the overlay to move it anywhere; while dragging, dashed outlines show the six snap spots (corners and top/bottom centre) and turn blue when it will snap in (the snap distance grows with **Overlay size**). **Position** in the panel has the same six spots as buttons.
+<div align="center">
+  <img src="docs/controls.png" alt="The settings panel's hotkey list above the running HUD: 12:34 into a 30-minute meeting with 8 people, €81.87 so far" width="340">
+</div>
 
-Resize: hover the overlay and drag the corner grip, or set **Overlay size** in the panel. Double-click the grip to reset.
+| Key | Action |
+|---|---|
+| `Space` | start / pause the timer |
+| `R` | reset time and cost |
+| `+` / `-` | one participant more / less (the cost changes from that moment on) |
+| `I` | show / hide the calculation details (rate, planned cost, waiting time) |
+| `B` | burn money: the full animation with the current cost per hour |
+| `Q` | quiet / full display |
+| `W` | waiting for someone / all here |
+| `H` or `Esc` | show / hide the settings panel |
+
+| Mouse | Action |
+|---|---|
+| Click the HUD | start / pause |
+| Drag the HUD | move it anywhere; dashed outlines show the six snap spots (corners, top/bottom centre) and turn blue when it will snap in |
+| Hover the HUD | reveals ⚙ (settings panel) and the corner grip |
+| Drag the corner grip | resize (same as **Overlay size**); double-click it to reset |
+
+Click inside the page first so it receives key presses (in OBS: right-click the source → **Interact**). Keys are ignored while you type in a settings field, except `Esc`.
+
+## Features
 
 Burning money: press **Burn** in the panel (or B) to let banknotes fly across the screen and burn up, with the current cost per hour in the centre (e.g. "€272/h going up in flames"). The timer keeps running. A smaller burst plays each time the cost passes a multiple of **Burn every**: leave it empty for auto (about every 10 minutes at the current cost per hour, rounded to 1/2/5 × 10ⁿ, e.g. €50), enter an amount, or 0 to turn it off.
 
