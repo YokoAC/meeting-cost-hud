@@ -24,3 +24,4 @@
 - Currency is a free ISO code checked against `Intl.supportedValuesOf('currency')`; `cur` holds the last valid one, an invalid entry is never saved.
 - No native pop-up controls (`<select>` lists, `alert`/`confirm`): OBS Interact renders the page off-screen and never shows them. Panel `<select>`s are hidden data holders; their `.seg` button rows are the UI and dispatch the select's `input` event.
 - Measure the HUD via `box()` (the unscaled `#hud` wrapper), never `#pill.getBoundingClientRect()`: OBS's Chromium (< 128) reports a `zoom`ed element's rect unscaled, which broke snapping and the burn origin at overlay sizes other than 1.
+- Waiting (`W`, `toggleWait()`): `wait` remembers cost and elapsed time at its start; ending it adds both to `waitCost`/`waitTime` and burns that amount (Quiet: a label). The HUD label switches to WAITING; a hidden MEETING COST in the same grid cell keeps the width.
