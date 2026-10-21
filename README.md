@@ -6,7 +6,7 @@ Live meeting cost overlay for OBS Studio and any video call app (Microsoft Teams
 
 **[Try it in your browser](https://yokoac.github.io/meeting-cost-hud/meeting-cost.html)**, or download `meeting-cost.html` and open it locally.
 
-https://github.com/user-attachments/assets/ec491d59-ad0f-43cb-82b9-ab0474f5bd8c
+https://github.com/user-attachments/assets/7bd40153-cdde-4dff-8d37-59a794ad0aa6
 
 ## Usage
 
