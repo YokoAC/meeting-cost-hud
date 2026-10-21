@@ -23,6 +23,10 @@
   .top{display:flex;justify-content:space-between;gap:16px;padding-bottom:6px;border-bottom:1px solid var(--rule)}
   #status{font-size:14px;white-space:nowrap;font-weight:700;letter-spacing:.04em;color:var(--grey)}
   #status.running{color:var(--green)}#status.paused{color:var(--amber)}
+  /* waiting for someone: blue, dot pulses; the cost runs as usual */
+  /* the label switches to WAITING; a hidden MEETING COST in the same grid cell keeps the width */
+  .lbl{display:inline-grid}.lbl>span{grid-area:1/1}.lbl .ghost{visibility:hidden}
+  #status.waiting{color:var(--blue)}.waiting #dot{animation:pulse .8s infinite alternate}@keyframes pulse{to{opacity:.25}}
   /* fixed 10px state icon so the overlay never changes width: ring = ready, dot = running, bars = paused */
   #dot{display:inline-block;box-sizing:border-box;width:10px;height:10px;margin-right:7px;border:2px solid;border-radius:50%}
   .running #dot{background:currentColor}.paused #dot{border-width:0 3px;border-radius:0}
@@ -52,6 +56,8 @@
   button{flex:1;padding:5px 10px;border:1px solid var(--line);border-radius:6px;background:var(--field);color:var(--fg);font:inherit;font-size:14px;cursor:pointer}
   button:hover,button:focus-visible{outline:0;border-color:var(--blue)}
   button.primary{color:var(--blue);border-color:var(--blue)}
+  /* "All here" while waiting: amber, dashed and blinking, so nobody forgets to end the waiting (unlike the solid blue Pause) */
+  #wait-btn.on{color:var(--amber);border:1px dashed var(--amber);animation:blink .8s infinite alternate}@keyframes blink{to{border-color:transparent}}
   .hint{display:grid;grid-template-columns:auto 1fr;gap:1px 14px;margin-top:12px;padding-top:9px;border-top:1px solid var(--rule);font-size:13px;opacity:.85}
   .hint b{font:400 13px var(--mono);color:var(--blue)}
   body.hidepanel #panel{opacity:0;pointer-events:none}
@@ -87,7 +93,7 @@
 <body>
 <div id="dock" class="br">
 <div id="hud"><div id="pill" title="Running meeting cost, elapsed time, participant count and current cost per hour. Click to start/pause; drag to move it (it snaps to corners and edge centres).">
-  <div class="top"><span id="status" title="Green dot = timer running, amber bars = paused, grey ring = not started"><i id="dot"></i><span class="lbl">MEETING COST</span></span><span><span id="time">00:00:00</span><button id="gear" title="Show or hide the settings panel (H)">&#9881;</button></span></div>
+  <div class="top"><span id="status" title="Green dot = timer running, amber bars = paused, grey ring = not started, pulsing blue WAITING = waiting for someone to join (W)"><i id="dot"></i><span class="lbl"><span id="lbl">MEETING COST</span><span class="ghost">MEETING COST</span></span></span><span><span id="time">00:00:00</span><button id="gear" title="Show or hide the settings panel (H)">&#9881;</button></span></div>
   <div id="cost"><span id="val">€0.00</span><span id="ghost"></span></div>
   <div class="sub"><span id="ppl">0</span> people · <span id="rate">0</span>/h</div>
   <div id="info"></div>
@@ -109,8 +115,8 @@
   <label title="Planned meeting length in minutes. The bar under the cost fills up, turns amber at 80% and red when over time; going over plays the burn animation once (in Quiet display a red label instead). 0 = off.">Planned length (min) <input title="Planned meeting length in minutes. The bar under the cost fills up, turns amber at 80% and red when over time; going over plays the burn animation once (in Quiet display a red label instead). 0 = off." id="plan" type="number" min="0" step="5" value="30"></label>
   <label title="Full shows the cost. Quiet shows only the status dot, elapsed time and planned-length bar; the cost keeps counting and appears again when you switch back. Money animations pause in Quiet; time reminders stay (Q).">Display <select title="Full shows the cost. Quiet shows only the status dot, elapsed time and planned-length bar; the cost keeps counting and appears again when you switch back. Money animations pause in Quiet; time reminders stay (Q)." id="view"><option value="full">Full</option><option value="quiet">Quiet</option></select></label>
   <div class="row"><button id="start" class="primary" title="Start or pause the timer (Space)">Start</button><button id="reset" title="Stop the timer and set time and cost back to zero (R)">Reset</button><button id="info-btn" title="Show or hide the calculation details (salary, employer factor, hours/year, cost per person) in the overlay (I)">Details</button><button id="burn-btn" title="Burn money: play the full burning-money animation over the camera image (B). The timer keeps running.">Burn</button></div>
-  <div class="row"><button id="defaults" title="Set all settings above back to their defaults (6 people, 65,000 salary, factor 1.2, 1720 h, EUR, bottom right, size 1, burn auto, 30 min, display full). The timer and cost are not touched.">Restore default settings</button></div>
-  <div class="hint" title="Keyboard shortcuts. In OBS, use them in the Interact window after clicking inside the page."><b>Space</b><span>start / pause</span><b>R</b><span>reset</span><b>+ / −</b><span>participants</span><b>I</b><span>calculation details</span><b>B</b><span>burn money</span><b>Q</b><span>quiet / full display</span><b>H / Esc</b><span>show or hide this panel</span></div>
+  <div class="row"><button id="wait-btn" title="Waiting for someone to join (W). Starts the timer if needed; the cost runs as usual but is also counted as waiting time. Press again when everyone is here: the money burned while waiting goes up in flames. The total is shown in Details.">Waiting</button><button id="defaults" title="Set all settings above back to their defaults (6 people, 65,000 salary, factor 1.2, 1720 h, EUR, bottom right, size 1, burn auto, 30 min, display full). The timer and cost are not touched.">Restore defaults</button></div>
+  <div class="hint" title="Keyboard shortcuts. In OBS, use them in the Interact window after clicking inside the page."><b>Space</b><span>start / pause</span><b>R</b><span>reset</span><b>+ / −</b><span>participants</span><b>I</b><span>calculation details</span><b>B</b><span>burn money</span><b>Q</b><span>quiet / full display</span><b>W</b><span>waiting for someone / all here</span><b>H / Esc</b><span>show or hide this panel</span></div>
 </div>
 </div>
 <div id="fx"></div>
@@ -156,8 +162,10 @@ function tick(){
   $('ppl').textContent=c.n;
   const f0=new Intl.NumberFormat('en-US',{style:'currency',currency:c.cur,maximumFractionDigits:0});
   $('rate').textContent=f0.format(perSec*3600);
-  $('status').className=running?'running':costAcc>0?'paused':'';
-  $('info').innerHTML=`${f0.format(c.salary)}/yr × ${c.factor.toFixed(2)} ÷ ${c.hours} h/yr<br>= ${f0.format(c.salary*c.factor/c.hours)}/h per person`;
+  $('status').className=(running?'running':costAcc>0?'paused':'')+(wait?' waiting':'');
+  const lbl=wait?'WAITING':'MEETING COST';if($('lbl').textContent!==lbl)$('lbl').textContent=lbl;
+  $('info').innerHTML=`${f0.format(c.salary)}/yr × ${c.factor.toFixed(2)} ÷ ${c.hours} h/yr<br>= ${f0.format(c.salary*c.factor/c.hours)}/h per person`
+    +(wait||waitCost?`<br>Waiting: ${mmss(waitTime+(wait?el-wait.t:0))} · ${fmt.format(waitCost+(wait?costAcc-wait.c:0))}`:'');
   place();
   // a dragged (offset) HUD highlights no position button
   document.querySelectorAll('.seg').forEach(g=>{const sel=g.previousElementSibling;
@@ -210,21 +218,28 @@ function burn(big,label){
 let popFree=0; // small labels queue until this time, so a reminder and a burn label never overlap
 // big: label in the screen centre (capped to 90% of the width); else a label rising from the HUD edge facing the centre, coloured by cls
 function pop(label,big,cls='',ms=big?3500:1800){
-  const now=performance.now(),wait=big?0:Math.max(0,popFree-now);
-  if(!big)popFree=now+wait+ms;
+  const now=performance.now(),delay=big?0:Math.max(0,popFree-now);
+  if(!big)popFree=now+delay+ms;
   setTimeout(()=>{
     const r=box(),z=+$('pill').style.zoom||1,sy=$('pos').value[0]==='b'?-1:1,t=document.createElement('div');
     t.className='tag '+cls;t.textContent=label;$('fx').append(t);
     const [lx,ly,ls,dy]=big?[innerWidth/2,innerHeight/2,Math.min(2.5*z,innerWidth*.9/t.offsetWidth),-40]:[r.left+r.width/2,(sy<0?r.top:r.bottom)+sy*16*z,z,sy*90],
       L=d=>`translate(${lx}px,${ly+d*z}px) translate(-50%,-50%) scale(${ls})`;
     t.animate([{transform:L(0),opacity:0},{opacity:1,offset:.15},{opacity:1,offset:.7},{transform:L(dy),opacity:0}],{duration:ms,easing:'ease-out'}).onfinish=()=>t.remove();
-  },wait);
+  },delay);
 }
 // dock = anchor class + drag offset; max height shrinks by the offset so the panel stays on screen
 function place(){const [ox,oy]=$('off').value?$('off').value.split(',').map(Number):[0,0],d=$('dock');
   d.className=$('pos').value;d.style.transform=`translate(${ox}vw,${oy}vh)`;d.style.maxHeight=`calc(100vh - 48px - ${Math.abs(oy)}vh)`}
+// waiting for someone: remembers cost and time at the start; on end, both are added to the totals and burned in one go
+let wait=null,waitCost=0,waitTime=0;
+const elapsed=()=>acc+(running?performance.now()-t0:0),mmss=ms=>{const s=Math.round(ms/1000);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
+function toggleWait(){
+  if(!wait){if(!running)toggle();wait={c:costAcc,t:elapsed()};$('wait-btn').textContent='All here';$('wait-btn').classList.add('on');return}
+  const dc=costAcc-wait.c,dt=elapsed()-wait.t;waitCost+=dc;waitTime+=dt;wait=null;$('wait-btn').textContent='Waiting';$('wait-btn').classList.remove('on');
+  $('view').value==='quiet'?pop(`Waited ${mmss(dt)}`,false,'blue',4000):burn(false,`Waited ${mmss(dt)} · ${fmt.format(dc)} burned`)} // small burst like "Burn every"; the big burn stays for B and overtime
 function toggle(){if(running){acc+=performance.now()-t0}else{t0=performance.now()}running=!running;$('start').textContent=running?'Pause':'Start'}
-function reset(){running=false;acc=0;costAcc=0;markT=-1;stage=0;$('start').textContent='Start'}
+function reset(){running=false;acc=0;costAcc=0;markT=-1;stage=0;wait=null;waitCost=0;waitTime=0;$('start').textContent='Start';$('wait-btn').textContent='Waiting';$('wait-btn').classList.remove('on')}
 $('start').onclick=toggle;$('reset').onclick=reset;$('pill').onclick=()=>{if(dragged)dragged=false;else toggle()};
 $('close').onclick=()=>document.body.classList.add('hidepanel');
 $('gear').onclick=e=>{e.stopPropagation();document.body.classList.toggle('hidepanel')}; // don't toggle the timer
@@ -232,6 +247,7 @@ const info=()=>document.body.classList.toggle('showinfo');
 $('info-btn').onclick=info;
 const burnNow=(pre='')=>{const c=cfg();burn(true,pre+new Intl.NumberFormat('en-US',{style:'currency',currency:c.cur,maximumFractionDigits:0}).format(c.n*c.salary*c.factor/c.hours)+'/h going up in flames')};
 $('burn-btn').onclick=()=>burnNow();
+$('wait-btn').onclick=toggleWait;
 if(P.has('info'))info();
 // each select gets a row of buttons; a click sets the select and fires its normal input handler (save, currency format)
 document.querySelectorAll('#panel select').forEach(sel=>{
@@ -277,6 +293,7 @@ document.addEventListener('keydown',e=>{
   else if(e.key==='h'||e.key==='H'||e.key==='Escape')document.body.classList.toggle('hidepanel');
   else if(e.key==='i'||e.key==='I')info();
   else if(e.key==='b'||e.key==='B')burnNow();
+  else if(e.key==='w'||e.key==='W')toggleWait();
   else if(e.key==='q'||e.key==='Q'){$('view').value=$('view').value==='quiet'?'full':'quiet';save('view')}
   else if(e.key==='+'){$('n').value=+$('n').value+1;save('n')}
   else if(e.key==='-'&&$('n').value>1){$('n').value=+$('n').value-1;save('n')}

@@ -10,9 +10,9 @@ https://github.com/user-attachments/assets/ec491d59-ad0f-43cb-82b9-ab0474f5bd8c
 
 ## Usage
 
-Open `meeting-cost.html` in a browser. Settings start hidden: hover the overlay and click ⚙ (or press H). Enter participants, average annual salary, employer cost factor and working hours per year, then press **Start** or click the overlay. **Currency** takes any 3-letter ISO code (EUR, USD, GBP, CHF, JPY, CNY, …); an unknown code is marked red and ignored. Settings are saved automatically and used next time; **Restore default settings** in the panel sets them back (the timer keeps running).
+Open `meeting-cost.html` in a browser. Settings start hidden: hover the overlay and click ⚙ (or press H). Enter participants, average annual salary, employer cost factor and working hours per year, then press **Start** or click the overlay. **Currency** takes any 3-letter ISO code (EUR, USD, GBP, CHF, JPY, CNY, …); an unknown code is marked red and ignored. Settings are saved automatically and used next time; **Restore defaults** in the panel sets them back (the timer keeps running).
 
-Hotkeys: Space start/pause · R reset · `+`/`-` participants · I show/hide calculation details · B burn money · Q quiet / full display · H or Esc show/hide panel. Click inside the page first so it receives key presses.
+Hotkeys: Space start/pause · R reset · `+`/`-` participants · I show/hide calculation details · B burn money · Q quiet / full display · W waiting for someone / all here · H or Esc show/hide panel. Click inside the page first so it receives key presses.
 
 Mouse: click the overlay to start/pause; hover it to reveal the ⚙ (settings panel) and the corner grip. Drag the overlay to move it anywhere; while dragging, dashed outlines show the six snap spots (corners and top/bottom centre) and turn blue when it will snap in (the snap distance grows with **Overlay size**). **Position** in the panel has the same six spots as buttons.
 
@@ -23,6 +23,8 @@ Burning money: press **Burn** in the panel (or B) to let banknotes fly across th
 Planned length: a thin bar under the cost fills up over **Planned length (min)** (default 30). It turns amber at 80%; when the meeting runs over, the bar and the elapsed time turn red and the full burn plays once ("Overtime: €272/h going up in flames"). Short reminders pop up at halfway ("Halfway · 15 min left") and, for meetings over 10 minutes, at "5 min left · time to wrap up". 0 turns all of this off.
 
 Quiet display: press Q (or set **Display** to Quiet) when a running cost would put too much pressure on the meeting. The HUD shrinks to the status dot, the elapsed time and the planned-length bar; the cost keeps counting and appears again when you switch back. Money animations (threshold bursts, the overtime burn) pause; the halfway and 5-min reminders stay, and overtime shows a red label instead of the burn. B still burns on purpose.
+
+Waiting for someone: press W (or **Waiting** in the panel) when you join and the host or a key person isn't there yet. The timer starts if needed and the HUD shows a pulsing blue WAITING; the cost runs as usual. Press W again when everyone is here: the money burned while waiting goes up in flames ("Waited 3:12 · €12.40 burned"; in Quiet display just "Waited 3:12"). **Details** shows the total waiting time and cost.
 
 URL parameters (browser only; OBS's **Local file** ignores them) override saved settings for that visit only, so a bookmark like `?n=20` does not change your saved defaults: `n`, `salary`, `factor`, `hours`, `cur` (ISO code, e.g. EUR, USD, JPY), `pos` (tl, tc, tr, bl, bc, br), `scale` (0.4–4), `burn` (0 = off), `plan` (minutes, 0 = off), `view` (full, quiet), plus flags `overlay` (transparent background), `autostart` and `info` (show calculation details). Example: `meeting-cost.html?n=8&salary=70000&pos=tr&autostart`
 
